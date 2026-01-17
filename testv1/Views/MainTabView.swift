@@ -2,7 +2,7 @@
 //  MainTabView.swift
 //  Halfisies
 //
-//  Cozy, warm, trust-first design
+//  Sleek, minimal tab bar
 //
 
 import SwiftUI
@@ -21,39 +21,39 @@ struct MainTabView: View {
                     .tag(1)
             }
             
-            // Custom cozy tab bar
-            cozyTabBar
+            // Sleek tab bar
+            sleekTabBar
         }
     }
     
-    var cozyTabBar: some View {
+    var sleekTabBar: some View {
         HStack(spacing: 0) {
-            CozyTabItem(
-                icon: "house.fill",
+            SleekTabItem(
+                icon: "house",
                 title: "Home",
                 isSelected: selectedTab == 0,
                 action: { selectedTab = 0 }
             )
             
-            CozyTabItem(
-                icon: "person.fill",
+            SleekTabItem(
+                icon: "person",
                 title: "Profile",
                 isSelected: selectedTab == 1,
                 action: { selectedTab = 1 }
             )
         }
-        .padding(.horizontal, 32)
-        .padding(.top, 12)
-        .padding(.bottom, 28)
+        .padding(.horizontal, 60)
+        .padding(.top, 8)
+        .padding(.bottom, 24)
         .background(
             HalfisiesTheme.cardBackground
-                .shadow(color: HalfisiesTheme.shadowColor, radius: 12, y: -4)
+                .shadow(color: Color.black.opacity(0.04), radius: 8, y: -2)
         )
     }
 }
 
-// MARK: - Cozy Tab Item
-struct CozyTabItem: View {
+// MARK: - Sleek Tab Item
+struct SleekTabItem: View {
     let icon: String
     let title: String
     let isSelected: Bool
@@ -61,13 +61,13 @@ struct CozyTabItem: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 22))
+            VStack(spacing: 2) {
+                Image(systemName: isSelected ? "\(icon).fill" : icon)
+                    .font(.system(size: 18, weight: .medium))
                     .foregroundColor(isSelected ? HalfisiesTheme.primary : HalfisiesTheme.textMuted)
                 
                 Text(title)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundColor(isSelected ? HalfisiesTheme.primary : HalfisiesTheme.textMuted)
             }
             .frame(maxWidth: .infinity)
@@ -76,6 +76,17 @@ struct CozyTabItem: View {
 }
 
 // Backward compatibility
+struct CozyTabItem: View {
+    let icon: String
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        SleekTabItem(icon: icon.replacingOccurrences(of: ".fill", with: ""), title: title, isSelected: isSelected, action: action)
+    }
+}
+
 struct TabBarItem: View {
     let icon: String
     let title: String
@@ -83,7 +94,7 @@ struct TabBarItem: View {
     let action: () -> Void
     
     var body: some View {
-        CozyTabItem(icon: icon, title: title, isSelected: isSelected, action: action)
+        SleekTabItem(icon: icon.replacingOccurrences(of: ".fill", with: ""), title: title, isSelected: isSelected, action: action)
     }
 }
 
