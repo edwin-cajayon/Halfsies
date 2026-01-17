@@ -56,48 +56,9 @@ struct AuthView: View {
         VStack(spacing: 0) {
             Spacer()
             
-            // Fun illustration with colorful circles
-            ZStack {
-                // Background glow
-                Circle()
-                    .fill(HalfisiesTheme.primary.opacity(0.1))
-                    .frame(width: 180, height: 180)
-                
-                // People sharing
-                HStack(spacing: -16) {
-                    Circle()
-                        .fill(HalfisiesTheme.secondary)
-                        .frame(width: 56, height: 56)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(.white)
-                        )
-                        .shadow(color: HalfisiesTheme.secondary.opacity(0.4), radius: 8, y: 4)
-                    
-                    Circle()
-                        .fill(HalfisiesTheme.primary)
-                        .frame(width: 64, height: 64)
-                        .overlay(
-                            Image(systemName: "heart.fill")
-                                .font(.system(size: 26))
-                                .foregroundColor(.white)
-                        )
-                        .shadow(color: HalfisiesTheme.primary.opacity(0.4), radius: 8, y: 4)
-                        .zIndex(1)
-                    
-                    Circle()
-                        .fill(HalfisiesTheme.coral)
-                        .frame(width: 56, height: 56)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(.white)
-                        )
-                        .shadow(color: HalfisiesTheme.coral.opacity(0.4), radius: 8, y: 4)
-                }
-            }
-            .padding(.bottom, 36)
+            // App Logo
+            HalfsiesLogoSimple(size: 120)
+                .padding(.bottom, 36)
             
             // Title & Tagline
             VStack(spacing: 12) {
@@ -189,16 +150,7 @@ struct AuthView: View {
                 
                 // Logo & Title
                 VStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(HalfisiesTheme.primaryGradient)
-                            .frame(width: 72, height: 72)
-                        
-                        Image(systemName: "person.2.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(.white)
-                    }
-                    .shadow(color: HalfisiesTheme.primary.opacity(0.4), radius: 12, y: 4)
+                    HalfsiesLogoSimple(size: 72)
                     
                     Text(isSignUp ? "Join the fun" : "Welcome back")
                         .font(.system(size: 26, weight: .bold, design: .rounded))
