@@ -2,7 +2,7 @@
 //  MainTabView.swift
 //  Halfisies
 //
-//  Cozy, warm, trust-first design
+//  Liquid Glass design
 //
 
 import SwiftUI
@@ -21,39 +21,76 @@ struct MainTabView: View {
                     .tag(1)
             }
             
-            // Custom cozy tab bar
-            cozyTabBar
+            // Liquid Glass Tab Bar
+            liquidGlassTabBar
         }
     }
     
-    var cozyTabBar: some View {
+    var liquidGlassTabBar: some View {
         HStack(spacing: 0) {
-            CozyTabItem(
-                icon: "house.fill",
+            LiquidGlassTabItem(
+                icon: "house",
                 title: "Home",
                 isSelected: selectedTab == 0,
-                action: { selectedTab = 0 }
+                action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = 0 } }
             )
             
-            CozyTabItem(
-                icon: "person.fill",
+            LiquidGlassTabItem(
+                icon: "person",
                 title: "Profile",
                 isSelected: selectedTab == 1,
-                action: { selectedTab = 1 }
+                action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { selectedTab = 1 } }
             )
         }
-        .padding(.horizontal, 32)
+        .padding(.horizontal, 40)
         .padding(.top, 12)
         .padding(.bottom, 28)
         .background(
-            HalfisiesTheme.cardBackground
-                .shadow(color: HalfisiesTheme.shadowColor, radius: 12, y: -4)
+            ZStack {
+                // Blur material
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                
+                // Glass gradient
+                Rectangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.9),
+                                Color.white.opacity(0.7)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                
+                // Top highlight line
+                VStack {
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.0),
+                                    Color.white.opacity(0.8),
+                                    Color.white.opacity(0.0)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(height: 1)
+                    
+                    Spacer()
+                }
+            }
+            .shadow(color: HalfisiesTheme.glassShadow, radius: 16, y: -8)
+            .shadow(color: HalfisiesTheme.primary.opacity(0.05), radius: 20, y: -10)
         )
     }
 }
 
-// MARK: - Cozy Tab Item
-struct CozyTabItem: View {
+// MARK: - Liquid Glass Tab Item
+struct LiquidGlassTabItem: View {
     let icon: String
     let title: String
     let isSelected: Bool
@@ -62,12 +99,36 @@ struct CozyTabItem: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 22))
-                    .foregroundColor(isSelected ? HalfisiesTheme.primary : HalfisiesTheme.textMuted)
+                ZStack {
+                    // Glass background for selected state
+                    if isSelected {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        HalfisiesTheme.primary.opacity(0.15),
+                                        HalfisiesTheme.primary.opacity(0.05)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .frame(width: 44, height: 44)
+                            .overlay(
+                                Circle()
+                                    .stroke(HalfisiesTheme.primary.opacity(0.2), lineWidth: 1)
+                            )
+                    }
+                    
+                    Image(systemName: isSelected ? "\(icon).fill" : icon)
+                        .font(.system(size: 20))
+                        .foregroundColor(isSelected ? HalfisiesTheme.primary : HalfisiesTheme.textMuted)
+                        .symbolEffect(.bounce, value: isSelected)
+                }
+                .frame(height: 44)
                 
                 Text(title)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(.system(size: 11, weight: isSelected ? .semibold : .medium, design: .rounded))
                     .foregroundColor(isSelected ? HalfisiesTheme.primary : HalfisiesTheme.textMuted)
             }
             .frame(maxWidth: .infinity)
@@ -76,6 +137,17 @@ struct CozyTabItem: View {
 }
 
 // Backward compatibility
+struct CozyTabItem: View {
+    let icon: String
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        LiquidGlassTabItem(icon: icon.replacingOccurrences(of: ".fill", with: ""), title: title, isSelected: isSelected, action: action)
+    }
+}
+
 struct TabBarItem: View {
     let icon: String
     let title: String
@@ -83,7 +155,7 @@ struct TabBarItem: View {
     let action: () -> Void
     
     var body: some View {
-        CozyTabItem(icon: icon, title: title, isSelected: isSelected, action: action)
+        LiquidGlassTabItem(icon: icon.replacingOccurrences(of: ".fill", with: ""), title: title, isSelected: isSelected, action: action)
     }
 }
 

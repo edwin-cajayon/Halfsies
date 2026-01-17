@@ -2,7 +2,7 @@
 //  AuthView.swift
 //  Halfsies
 //
-//  Vibrant, playful, friendly design
+//  Vibrant, playful, friendly design with Liquid Glass effects
 //
 
 import SwiftUI
@@ -14,34 +14,8 @@ struct AuthView: View {
     
     var body: some View {
         ZStack {
-            // Gradient background
-            LinearGradient(
-                colors: [
-                    HalfisiesTheme.appBackground,
-                    Color(hex: "FFF5F8")
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            
-            // Decorative circles
-            GeometryReader { geo in
-                Circle()
-                    .fill(HalfisiesTheme.secondary.opacity(0.15))
-                    .frame(width: 200, height: 200)
-                    .offset(x: -80, y: -50)
-                
-                Circle()
-                    .fill(HalfisiesTheme.primary.opacity(0.1))
-                    .frame(width: 150, height: 150)
-                    .offset(x: geo.size.width - 60, y: 100)
-                
-                Circle()
-                    .fill(HalfisiesTheme.golden.opacity(0.2))
-                    .frame(width: 100, height: 100)
-                    .offset(x: geo.size.width - 120, y: geo.size.height - 200)
-            }
+            // Liquid Glass Background
+            LiquidGlassBackground()
             
             if showOnboarding {
                 onboardingView
@@ -56,45 +30,34 @@ struct AuthView: View {
         VStack(spacing: 0) {
             Spacer()
             
-            // Fun illustration with colorful circles
+            // Glass illustration with colorful circles
             ZStack {
-                // Background glow
+                // Glass background
                 Circle()
-                    .fill(HalfisiesTheme.primary.opacity(0.1))
+                    .fill(.ultraThinMaterial)
                     .frame(width: 180, height: 180)
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.6),
+                                        Color.white.opacity(0.1)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 1.5
+                            )
+                    )
+                    .shadow(color: HalfisiesTheme.glassShadow, radius: 20)
                 
-                // People sharing
+                // People sharing with glass effect
                 HStack(spacing: -16) {
-                    Circle()
-                        .fill(HalfisiesTheme.secondary)
-                        .frame(width: 56, height: 56)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(.white)
-                        )
-                        .shadow(color: HalfisiesTheme.secondary.opacity(0.4), radius: 8, y: 4)
-                    
-                    Circle()
-                        .fill(HalfisiesTheme.primary)
-                        .frame(width: 64, height: 64)
-                        .overlay(
-                            Image(systemName: "heart.fill")
-                                .font(.system(size: 26))
-                                .foregroundColor(.white)
-                        )
-                        .shadow(color: HalfisiesTheme.primary.opacity(0.4), radius: 8, y: 4)
+                    GlassAvatar(icon: "person.fill", color: HalfisiesTheme.secondary, size: 56)
+                    GlassAvatar(icon: "heart.fill", color: HalfisiesTheme.primary, size: 64)
                         .zIndex(1)
-                    
-                    Circle()
-                        .fill(HalfisiesTheme.coral)
-                        .frame(width: 56, height: 56)
-                        .overlay(
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 24))
-                                .foregroundColor(.white)
-                        )
-                        .shadow(color: HalfisiesTheme.coral.opacity(0.4), radius: 8, y: 4)
+                    GlassAvatar(icon: "person.fill", color: HalfisiesTheme.coral, size: 56)
                 }
             }
             .padding(.bottom, 36)
@@ -113,45 +76,43 @@ struct AuthView: View {
             }
             .padding(.bottom, 32)
             
-            // Value Props with colorful icons
+            // Value Props with glass icons
             VStack(spacing: 14) {
-                ValuePropRow(icon: "sparkles", text: "Join a fun community of sharers", color: HalfisiesTheme.golden)
-                ValuePropRow(icon: "heart.circle.fill", text: "Save up to 75% together", color: HalfisiesTheme.primary)
-                ValuePropRow(icon: "shield.fill", text: "Verified users you can trust", color: HalfisiesTheme.secondary)
-                ValuePropRow(icon: "bolt.fill", text: "No commitment, cancel anytime", color: HalfisiesTheme.coral)
+                GlassValuePropRow(icon: "sparkles", text: "Join a fun community of sharers", color: HalfisiesTheme.golden)
+                GlassValuePropRow(icon: "heart.circle.fill", text: "Save up to 75% together", color: HalfisiesTheme.primary)
+                GlassValuePropRow(icon: "shield.fill", text: "Verified users you can trust", color: HalfisiesTheme.secondary)
+                GlassValuePropRow(icon: "bolt.fill", text: "No commitment, cancel anytime", color: HalfisiesTheme.coral)
             }
             .padding(.horizontal, 36)
             
             Spacer()
             
-            // Colorful Stats
+            // Liquid Glass Stats Card
             HStack(spacing: 0) {
-                OnboardingStat(value: "120+", label: "Services", color: HalfisiesTheme.secondary)
-                OnboardingStat(value: "10K+", label: "Happy Users", color: HalfisiesTheme.primary)
-                OnboardingStat(value: "$2M+", label: "Saved", color: HalfisiesTheme.golden)
+                GlassOnboardingStat(value: "120+", label: "Services", color: HalfisiesTheme.secondary)
+                GlassOnboardingStat(value: "10K+", label: "Happy Users", color: HalfisiesTheme.primary)
+                GlassOnboardingStat(value: "$2M+", label: "Saved", color: HalfisiesTheme.golden)
             }
             .padding(.vertical, 20)
-            .background(HalfisiesTheme.cardBackground)
-            .cornerRadius(HalfisiesTheme.cornerLarge)
-            .shadow(color: HalfisiesTheme.shadowColor, radius: 16, y: 4)
+            .liquidGlassCard(padding: 0, cornerRadius: HalfisiesTheme.cornerXLarge)
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
             
-            // Get Started Button
-            Button(action: { withAnimation(.spring()) { showOnboarding = false } }) {
+            // Glass Get Started Button
+            Button(action: { withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showOnboarding = false } }) {
                 HStack {
                     Text("Get Started")
                     Image(systemName: "arrow.right")
                         .font(.system(size: 14, weight: .bold))
                 }
             }
-            .cozyPrimaryButton()
+            .liquidGlassPrimaryButton()
             .padding(.horizontal, 20)
             .padding(.bottom, 12)
             
             // Already have account
             Button(action: { 
-                withAnimation(.spring()) { 
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { 
                     showOnboarding = false
                     isSignUp = false
                 }
@@ -172,26 +133,50 @@ struct AuthView: View {
     var authFormView: some View {
         ScrollView(showsIndicators: false) {
             VStack(spacing: 28) {
-                // Back button
+                // Glass back button
                 HStack {
-                    Button(action: { withAnimation(.spring()) { showOnboarding = true } }) {
+                    Button(action: { withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showOnboarding = true } }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(HalfisiesTheme.textSecondary)
                             .padding(12)
-                            .background(HalfisiesTheme.cardBackground)
-                            .cornerRadius(HalfisiesTheme.cornerSmall)
-                            .shadow(color: HalfisiesTheme.shadowColor, radius: 4, y: 2)
+                            .background(
+                                ZStack {
+                                    Circle()
+                                        .fill(.ultraThinMaterial)
+                                    
+                                    Circle()
+                                        .fill(Color.white.opacity(0.7))
+                                    
+                                    Circle()
+                                        .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                                }
+                            )
+                            .shadow(color: HalfisiesTheme.glassShadow, radius: 6, y: 2)
                     }
                     Spacer()
                 }
                 .padding(.top, 12)
                 
-                // Logo & Title
+                // Glass Logo & Title
                 VStack(spacing: 14) {
                     ZStack {
                         Circle()
                             .fill(HalfisiesTheme.primaryGradient)
+                            .frame(width: 72, height: 72)
+                        
+                        // Glass shine
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.5),
+                                        Color.white.opacity(0.0)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .center
+                                )
+                            )
                             .frame(width: 72, height: 72)
                         
                         Image(systemName: "person.2.fill")
@@ -209,37 +194,73 @@ struct AuthView: View {
                         .foregroundColor(HalfisiesTheme.textMuted)
                 }
                 
-                // Form Toggle
+                // Glass Form Toggle
                 HStack(spacing: 0) {
-                    Button(action: { withAnimation(.spring()) { isSignUp = false } }) {
+                    Button(action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { isSignUp = false } }) {
                         Text("Sign In")
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
                             .foregroundColor(isSignUp ? HalfisiesTheme.textMuted : .white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
-                            .background(isSignUp ? Color.clear : HalfisiesTheme.primary)
-                            .cornerRadius(HalfisiesTheme.cornerSmall)
+                            .background(
+                                ZStack {
+                                    if !isSignUp {
+                                        Capsule()
+                                            .fill(HalfisiesTheme.primary)
+                                        Capsule()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [Color.white.opacity(0.3), Color.white.opacity(0.0)],
+                                                    startPoint: .top,
+                                                    endPoint: .center
+                                                )
+                                            )
+                                    }
+                                }
+                            )
                     }
                     
-                    Button(action: { withAnimation(.spring()) { isSignUp = true } }) {
+                    Button(action: { withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) { isSignUp = true } }) {
                         Text("Sign Up")
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
                             .foregroundColor(isSignUp ? .white : HalfisiesTheme.textMuted)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
-                            .background(isSignUp ? HalfisiesTheme.primary : Color.clear)
-                            .cornerRadius(HalfisiesTheme.cornerSmall)
+                            .background(
+                                ZStack {
+                                    if isSignUp {
+                                        Capsule()
+                                            .fill(HalfisiesTheme.primary)
+                                        Capsule()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [Color.white.opacity(0.3), Color.white.opacity(0.0)],
+                                                    startPoint: .top,
+                                                    endPoint: .center
+                                                )
+                                            )
+                                    }
+                                }
+                            )
                     }
                 }
                 .padding(4)
-                .background(HalfisiesTheme.cardBackground)
-                .cornerRadius(HalfisiesTheme.cornerMedium)
-                .shadow(color: HalfisiesTheme.shadowColor, radius: 8, y: 2)
+                .background(
+                    ZStack {
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                        Capsule()
+                            .fill(Color.white.opacity(0.6))
+                        Capsule()
+                            .stroke(Color.white.opacity(0.5), lineWidth: 1)
+                    }
+                )
+                .shadow(color: HalfisiesTheme.glassShadow, radius: 8, y: 2)
                 
-                // Form Fields
+                // Glass Form Fields
                 VStack(spacing: 14) {
                     if isSignUp {
-                        CozyTextField(
+                        GlassTextField(
                             icon: "person",
                             placeholder: "Your name",
                             text: $viewModel.displayName,
@@ -247,7 +268,7 @@ struct AuthView: View {
                         )
                     }
                     
-                    CozyTextField(
+                    GlassTextField(
                         icon: "envelope",
                         placeholder: "Email address",
                         text: $viewModel.email,
@@ -255,7 +276,7 @@ struct AuthView: View {
                         iconColor: HalfisiesTheme.secondary
                     )
                     
-                    CozyTextField(
+                    GlassTextField(
                         icon: "lock",
                         placeholder: "Password",
                         text: $viewModel.password,
@@ -273,8 +294,10 @@ struct AuthView: View {
                         .foregroundColor(HalfisiesTheme.coral)
                         .padding(12)
                         .frame(maxWidth: .infinity)
-                        .background(HalfisiesTheme.coral.opacity(0.1))
-                        .cornerRadius(HalfisiesTheme.cornerSmall)
+                        .background(
+                            RoundedRectangle(cornerRadius: HalfisiesTheme.cornerSmall)
+                                .fill(HalfisiesTheme.coral.opacity(0.1))
+                        )
                     }
                     
                     // Submit Button
@@ -298,7 +321,7 @@ struct AuthView: View {
                             }
                         }
                     }
-                    .cozyPrimaryButton()
+                    .liquidGlassPrimaryButton()
                     .disabled(viewModel.isLoading)
                     .opacity(viewModel.isLoading ? 0.7 : 1)
                 }
@@ -318,7 +341,7 @@ struct AuthView: View {
                         .frame(height: 1)
                 }
                 
-                // Apple Sign In
+                // Glass Apple Sign In
                 Button(action: {
                     Task { await viewModel.signInWithApple() }
                 }) {
@@ -328,7 +351,7 @@ struct AuthView: View {
                         Text("Continue with Apple")
                     }
                 }
-                .cozySecondaryButton()
+                .liquidGlassSecondaryButton()
                 .disabled(viewModel.isLoading)
                 
                 // Legal text
@@ -345,23 +368,63 @@ struct AuthView: View {
     }
 }
 
-// MARK: - Value Prop Row
-struct ValuePropRow: View {
+// MARK: - Glass Avatar
+struct GlassAvatar: View {
+    let icon: String
+    var color: Color = HalfisiesTheme.primary
+    var size: CGFloat = 56
+    
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(color)
+            
+            // Glass shine
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.5),
+                            Color.white.opacity(0.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .center
+                    )
+                )
+            
+            // Inner highlight
+            Circle()
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.5),
+                            Color.white.opacity(0.1)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1.5
+                )
+                .padding(1)
+            
+            Image(systemName: icon)
+                .font(.system(size: size * 0.4))
+                .foregroundColor(.white)
+        }
+        .frame(width: size, height: size)
+        .shadow(color: color.opacity(0.4), radius: 8, y: 4)
+    }
+}
+
+// MARK: - Glass Value Prop Row
+struct GlassValuePropRow: View {
     let icon: String
     let text: String
     var color: Color = HalfisiesTheme.primary
     
     var body: some View {
         HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.15))
-                    .frame(width: 36, height: 36)
-                
-                Image(systemName: icon)
-                    .font(.system(size: 16))
-                    .foregroundColor(color)
-            }
+            GlassIconBadge(icon: icon, color: color, size: 36)
             
             Text(text)
                 .font(.system(size: 15, design: .rounded))
@@ -372,8 +435,8 @@ struct ValuePropRow: View {
     }
 }
 
-// MARK: - Onboarding Stat
-struct OnboardingStat: View {
+// MARK: - Glass Onboarding Stat
+struct GlassOnboardingStat: View {
     let value: String
     let label: String
     var color: Color = HalfisiesTheme.primary
@@ -392,8 +455,8 @@ struct OnboardingStat: View {
     }
 }
 
-// MARK: - Cozy Text Field
-struct CozyTextField: View {
+// MARK: - Glass Text Field
+struct GlassTextField: View {
     let icon: String
     let placeholder: String
     @Binding var text: String
@@ -419,13 +482,66 @@ struct CozyTextField: View {
             }
         }
         .padding(16)
-        .background(HalfisiesTheme.cardBackground)
-        .cornerRadius(HalfisiesTheme.cornerMedium)
-        .shadow(color: HalfisiesTheme.shadowColor, radius: 6, y: 2)
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
+                    .fill(.ultraThinMaterial)
+                
+                RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
+                    .fill(Color.white.opacity(0.7))
+                
+                RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.8),
+                                Color.white.opacity(0.3)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        ),
+                        lineWidth: 1
+                    )
+            }
+        )
+        .shadow(color: HalfisiesTheme.glassShadow, radius: 6, y: 2)
     }
 }
 
-// Keep AuthTextField for backward compatibility
+// Legacy compatibility
+struct ValuePropRow: View {
+    let icon: String
+    let text: String
+    var color: Color = HalfisiesTheme.primary
+    
+    var body: some View {
+        GlassValuePropRow(icon: icon, text: text, color: color)
+    }
+}
+
+struct OnboardingStat: View {
+    let value: String
+    let label: String
+    var color: Color = HalfisiesTheme.primary
+    
+    var body: some View {
+        GlassOnboardingStat(value: value, label: label, color: color)
+    }
+}
+
+struct CozyTextField: View {
+    let icon: String
+    let placeholder: String
+    @Binding var text: String
+    var keyboardType: UIKeyboardType = .default
+    var isSecure: Bool = false
+    var iconColor: Color = HalfisiesTheme.primary
+    
+    var body: some View {
+        GlassTextField(icon: icon, placeholder: placeholder, text: $text, keyboardType: keyboardType, isSecure: isSecure, iconColor: iconColor)
+    }
+}
+
 struct AuthTextField: View {
     let icon: String
     let placeholder: String
@@ -434,7 +550,7 @@ struct AuthTextField: View {
     var isSecure: Bool = false
     
     var body: some View {
-        CozyTextField(icon: icon, placeholder: placeholder, text: $text, keyboardType: keyboardType, isSecure: isSecure)
+        GlassTextField(icon: icon, placeholder: placeholder, text: $text, keyboardType: keyboardType, isSecure: isSecure)
     }
 }
 
