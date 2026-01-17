@@ -2,7 +2,7 @@
 //  HomeView.swift
 //  Halfsies
 //
-//  Vibrant, playful, friendly design with Liquid Glass effects
+//  Vibrant, playful, friendly design
 //
 
 import SwiftUI
@@ -16,8 +16,9 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Liquid Glass Background with gradient blobs
-                LiquidGlassBackground()
+                // Background
+                HalfisiesTheme.appBackground
+                    .ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     headerView
@@ -68,7 +69,6 @@ struct HomeView: View {
             
             Spacer()
             
-            // Glass share button
             Button(action: { showCreateListing = true }) {
                 HStack(spacing: 6) {
                     Image(systemName: "plus")
@@ -76,39 +76,25 @@ struct HomeView: View {
                     Text("Share")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(
-                    ZStack {
-                        Capsule()
-                            .fill(HalfisiesTheme.primaryGradient)
-                        
-                        // Glass shine
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.4),
-                                        Color.white.opacity(0.0)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .center
-                                )
-                            )
-                    }
-                )
-                .shadow(color: HalfisiesTheme.primary.opacity(0.4), radius: 8, y: 4)
             }
+            .buttonStyle(CozyPillButtonStyle(color: HalfisiesTheme.primary, isSelected: true))
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
     }
     
-    // MARK: - Welcome Banner (Liquid Glass)
+    // MARK: - Welcome Banner
     var welcomeBanner: some View {
         HStack(spacing: 14) {
-            GlassIconBadge(icon: "sparkles", color: HalfisiesTheme.golden, size: 50)
+            ZStack {
+                Circle()
+                    .fill(HalfisiesTheme.golden.opacity(0.2))
+                    .frame(width: 50, height: 50)
+                
+                Image(systemName: "sparkles")
+                    .font(.system(size: 22))
+                    .foregroundColor(HalfisiesTheme.golden)
+            }
             
             VStack(alignment: .leading, spacing: 4) {
                 Text("Save up to 75% together!")
@@ -122,11 +108,11 @@ struct HomeView: View {
             
             Spacer()
         }
-        .liquidGlassCard()
+        .cozyCard()
         .padding(.horizontal, 20)
     }
     
-    // MARK: - Search Bar (Liquid Glass)
+    // MARK: - Search Bar
     var searchBar: some View {
         HStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
@@ -137,29 +123,9 @@ struct HomeView: View {
                 .font(.system(size: 15))
         }
         .padding(14)
-        .background(
-            ZStack {
-                RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
-                    .fill(.ultraThinMaterial)
-                
-                RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
-                    .fill(Color.white.opacity(0.7))
-                
-                RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
-                    .stroke(
-                        LinearGradient(
-                            colors: [
-                                Color.white.opacity(0.8),
-                                Color.white.opacity(0.3)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        ),
-                        lineWidth: 1
-                    )
-            }
-        )
-        .shadow(color: HalfisiesTheme.glassShadow, radius: 8, y: 4)
+        .background(HalfisiesTheme.cardBackground)
+        .cornerRadius(HalfisiesTheme.cornerMedium)
+        .shadow(color: HalfisiesTheme.shadowColor, radius: 6, y: 2)
         .padding(.horizontal, 20)
     }
     
@@ -171,7 +137,7 @@ struct HomeView: View {
                 Button(action: { selectedCategory = nil }) {
                     Text("All")
                 }
-                .buttonStyle(LiquidGlassButtonStyle(color: HalfisiesTheme.primary, isSelected: selectedCategory == nil))
+                .buttonStyle(CozyPillButtonStyle(color: HalfisiesTheme.primary, isSelected: selectedCategory == nil))
                 
                 ForEach(ServiceCategory.allCases.filter { $0 != .other }, id: \.self) { category in
                     Button(action: { selectedCategory = category }) {
@@ -181,7 +147,7 @@ struct HomeView: View {
                             Text(category.rawValue)
                         }
                     }
-                    .buttonStyle(LiquidGlassButtonStyle(color: HalfisiesTheme.secondary, isSelected: selectedCategory == category))
+                    .buttonStyle(CozyPillButtonStyle(color: HalfisiesTheme.secondary, isSelected: selectedCategory == category))
                 }
             }
             .padding(.horizontal, 20)
@@ -207,7 +173,7 @@ struct HomeView: View {
             LazyVStack(spacing: 12) {
                 ForEach(filteredByCategory) { listing in
                     NavigationLink(destination: ListingDetailView(listing: listing, authViewModel: authViewModel)) {
-                        LiquidGlassSubscriptionCard(listing: listing)
+                        CozySubscriptionCard(listing: listing)
                     }
                 }
             }
@@ -226,15 +192,9 @@ struct HomeView: View {
     // MARK: - Loading State
     var loadingState: some View {
         VStack(spacing: 16) {
-            ZStack {
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 60, height: 60)
-                
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: HalfisiesTheme.primary))
-                    .scaleEffect(1.2)
-            }
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: HalfisiesTheme.primary))
+                .scaleEffect(1.2)
             
             Text("Finding great deals...")
                 .font(.system(size: 15, design: .rounded))
@@ -247,7 +207,15 @@ struct HomeView: View {
     // MARK: - Empty State
     var emptyState: some View {
         VStack(spacing: 16) {
-            GlassIconBadge(icon: "tray", color: HalfisiesTheme.secondary, size: 80)
+            ZStack {
+                Circle()
+                    .fill(HalfisiesTheme.secondary.opacity(0.15))
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: "tray")
+                    .font(.system(size: 32))
+                    .foregroundColor(HalfisiesTheme.secondary)
+            }
             
             Text("No subscriptions found")
                 .font(.system(size: 17, weight: .semibold, design: .rounded))
@@ -264,7 +232,7 @@ struct HomeView: View {
                     Text("Share a Subscription")
                 }
             }
-            .buttonStyle(LiquidGlassButtonStyle(color: HalfisiesTheme.primary, isSelected: true))
+            .buttonStyle(CozyPillButtonStyle(color: HalfisiesTheme.primary, isSelected: true))
             .padding(.top, 8)
         }
         .padding(.vertical, 60)
@@ -272,14 +240,22 @@ struct HomeView: View {
     }
 }
 
-// MARK: - Liquid Glass Subscription Card
-struct LiquidGlassSubscriptionCard: View {
+// MARK: - Cozy Subscription Card
+struct CozySubscriptionCard: View {
     let listing: SubscriptionListing
     
     var body: some View {
         HStack(spacing: 14) {
-            // Service Icon with glass effect
-            GlassIconBadge(icon: listing.service.icon, color: listing.service.brandColor, size: 54)
+            // Service Icon
+            ZStack {
+                RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
+                    .fill(listing.service.brandColor.opacity(0.15))
+                    .frame(width: 54, height: 54)
+                
+                Image(systemName: listing.service.icon)
+                    .font(.system(size: 24))
+                    .foregroundColor(listing.service.brandColor)
+            }
             
             // Info
             VStack(alignment: .leading, spacing: 4) {
@@ -288,12 +264,11 @@ struct LiquidGlassSubscriptionCard: View {
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
                         .foregroundColor(HalfisiesTheme.textPrimary)
                     
-                    // Glass trust badge
+                    // Trust badge
                     if listing.ownerTrustScore >= 80 {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 12))
                             .foregroundColor(HalfisiesTheme.secondary)
-                            .shadow(color: HalfisiesTheme.secondary.opacity(0.3), radius: 2)
                     }
                 }
                 
@@ -301,24 +276,11 @@ struct LiquidGlassSubscriptionCard: View {
                     .font(.system(size: 13))
                     .foregroundColor(HalfisiesTheme.textMuted)
                 
-                // Glass seats indicator
+                // Seats indicator with colors
                 HStack(spacing: 4) {
                     ForEach(0..<min(listing.totalSeats, 5), id: \.self) { index in
                         Circle()
-                            .fill(
-                                index < listing.occupiedSeats 
-                                    ? HalfisiesTheme.primary 
-                                    : Color.white.opacity(0.5)
-                            )
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        index < listing.occupiedSeats 
-                                            ? HalfisiesTheme.primary.opacity(0.5)
-                                            : Color.white.opacity(0.3),
-                                        lineWidth: 1
-                                    )
-                            )
+                            .fill(index < listing.occupiedSeats ? HalfisiesTheme.primary : HalfisiesTheme.border)
                             .frame(width: 8, height: 8)
                     }
                     
@@ -341,25 +303,23 @@ struct LiquidGlassSubscriptionCard: View {
                     .font(.system(size: 11))
                     .foregroundColor(HalfisiesTheme.textMuted)
                 
-                // Glass savings badge
+                // Savings badge
                 if listing.savingsPercent > 0 {
-                    GlassDiscountBadge(percent: listing.savingsPercent)
+                    Text("-\(listing.savingsPercent)%")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(HalfisiesTheme.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(HalfisiesTheme.secondary.opacity(0.15))
+                        .cornerRadius(HalfisiesTheme.cornerSmall)
                 }
             }
         }
-        .liquidGlassCard()
+        .cozyCard()
     }
 }
 
-// Legacy compatibility
-struct CozySubscriptionCard: View {
-    let listing: SubscriptionListing
-    
-    var body: some View {
-        LiquidGlassSubscriptionCard(listing: listing)
-    }
-}
-
+// Keep old components for backward compatibility
 struct FilterChip: View {
     let title: String
     var icon: String? = nil
@@ -377,7 +337,7 @@ struct FilterChip: View {
                 Text(title)
             }
         }
-        .buttonStyle(LiquidGlassButtonStyle(color: color, isSelected: isSelected))
+        .buttonStyle(CozyPillButtonStyle(color: color, isSelected: isSelected))
     }
 }
 
@@ -385,7 +345,7 @@ struct SubscriptionCard: View {
     let listing: SubscriptionListing
     
     var body: some View {
-        LiquidGlassSubscriptionCard(listing: listing)
+        CozySubscriptionCard(listing: listing)
     }
 }
 
