@@ -1,8 +1,8 @@
 //
 //  AuthView.swift
-//  Halfisies
+//  Halfsies
 //
-//  Cozy, warm, trust-first design
+//  Vibrant, playful, friendly design
 //
 
 import SwiftUI
@@ -14,8 +14,34 @@ struct AuthView: View {
     
     var body: some View {
         ZStack {
-            HalfisiesTheme.appBackground
-                .ignoresSafeArea()
+            // Gradient background
+            LinearGradient(
+                colors: [
+                    HalfisiesTheme.appBackground,
+                    Color(hex: "FFF5F8")
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            // Decorative circles
+            GeometryReader { geo in
+                Circle()
+                    .fill(HalfisiesTheme.secondary.opacity(0.15))
+                    .frame(width: 200, height: 200)
+                    .offset(x: -80, y: -50)
+                
+                Circle()
+                    .fill(HalfisiesTheme.primary.opacity(0.1))
+                    .frame(width: 150, height: 150)
+                    .offset(x: geo.size.width - 60, y: 100)
+                
+                Circle()
+                    .fill(HalfisiesTheme.golden.opacity(0.2))
+                    .frame(width: 100, height: 100)
+                    .offset(x: geo.size.width - 120, y: geo.size.height - 200)
+            }
             
             if showOnboarding {
                 onboardingView
@@ -30,74 +56,94 @@ struct AuthView: View {
         VStack(spacing: 0) {
             Spacer()
             
-            // Cozy illustration
+            // Fun illustration with colorful circles
             ZStack {
+                // Background glow
                 Circle()
-                    .fill(HalfisiesTheme.primary.opacity(0.08))
-                    .frame(width: 200, height: 200)
+                    .fill(HalfisiesTheme.primary.opacity(0.1))
+                    .frame(width: 180, height: 180)
                 
-                Circle()
-                    .fill(HalfisiesTheme.primary.opacity(0.12))
-                    .frame(width: 140, height: 140)
-                
-                // Friendly people sharing
-                HStack(spacing: -12) {
-                    ForEach(0..<3, id: \.self) { i in
-                        Circle()
-                            .fill(i == 1 ? HalfisiesTheme.primary : HalfisiesTheme.secondary)
-                            .frame(width: 48, height: 48)
-                            .overlay(
-                                Image(systemName: "person.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.white)
-                            )
-                            .shadow(color: HalfisiesTheme.shadowColor, radius: 4, y: 2)
-                    }
+                // People sharing
+                HStack(spacing: -16) {
+                    Circle()
+                        .fill(HalfisiesTheme.secondary)
+                        .frame(width: 56, height: 56)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
+                        )
+                        .shadow(color: HalfisiesTheme.secondary.opacity(0.4), radius: 8, y: 4)
+                    
+                    Circle()
+                        .fill(HalfisiesTheme.primary)
+                        .frame(width: 64, height: 64)
+                        .overlay(
+                            Image(systemName: "heart.fill")
+                                .font(.system(size: 26))
+                                .foregroundColor(.white)
+                        )
+                        .shadow(color: HalfisiesTheme.primary.opacity(0.4), radius: 8, y: 4)
+                        .zIndex(1)
+                    
+                    Circle()
+                        .fill(HalfisiesTheme.coral)
+                        .frame(width: 56, height: 56)
+                        .overlay(
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(.white)
+                        )
+                        .shadow(color: HalfisiesTheme.coral.opacity(0.4), radius: 8, y: 4)
                 }
             }
-            .padding(.bottom, 40)
+            .padding(.bottom, 36)
             
             // Title & Tagline
             VStack(spacing: 12) {
-                Text("Halfisies")
-                    .font(.system(size: 38, weight: .bold, design: .rounded))
+                Text("Halfsies")
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
                     .foregroundColor(HalfisiesTheme.textPrimary)
                 
-                Text("Share subscriptions with\npeople you can trust")
+                Text("Share subscriptions,\nsave together! 🎉")
                     .font(.system(size: 18, weight: .medium, design: .rounded))
                     .foregroundColor(HalfisiesTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
             }
-            .padding(.bottom, 36)
+            .padding(.bottom, 32)
             
-            // Value Props
+            // Value Props with colorful icons
             VStack(spacing: 14) {
-                ValuePropRow(icon: "heart.fill", text: "Join a friendly community of sharers", color: HalfisiesTheme.primary)
-                ValuePropRow(icon: "leaf.fill", text: "Save up to 75% on subscriptions", color: HalfisiesTheme.secondary)
-                ValuePropRow(icon: "shield.fill", text: "Verified users & secure payments", color: HalfisiesTheme.primary)
-                ValuePropRow(icon: "clock.fill", text: "No commitment, cancel anytime", color: HalfisiesTheme.secondary)
+                ValuePropRow(icon: "sparkles", text: "Join a fun community of sharers", color: HalfisiesTheme.golden)
+                ValuePropRow(icon: "heart.circle.fill", text: "Save up to 75% together", color: HalfisiesTheme.primary)
+                ValuePropRow(icon: "shield.fill", text: "Verified users you can trust", color: HalfisiesTheme.secondary)
+                ValuePropRow(icon: "bolt.fill", text: "No commitment, cancel anytime", color: HalfisiesTheme.coral)
             }
-            .padding(.horizontal, 32)
+            .padding(.horizontal, 36)
             
             Spacer()
             
-            // Stats
+            // Colorful Stats
             HStack(spacing: 0) {
-                OnboardingStat(value: "120+", label: "Services")
-                OnboardingStat(value: "10K+", label: "Happy Users")
-                OnboardingStat(value: "$2M+", label: "Saved")
+                OnboardingStat(value: "120+", label: "Services", color: HalfisiesTheme.secondary)
+                OnboardingStat(value: "10K+", label: "Happy Users", color: HalfisiesTheme.primary)
+                OnboardingStat(value: "$2M+", label: "Saved", color: HalfisiesTheme.golden)
             }
             .padding(.vertical, 20)
             .background(HalfisiesTheme.cardBackground)
-            .cornerRadius(HalfisiesTheme.cornerMedium)
-            .shadow(color: HalfisiesTheme.shadowColor, radius: 8, y: 2)
+            .cornerRadius(HalfisiesTheme.cornerLarge)
+            .shadow(color: HalfisiesTheme.shadowColor, radius: 16, y: 4)
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
             
             // Get Started Button
-            Button(action: { withAnimation(.easeInOut) { showOnboarding = false } }) {
-                Text("Get Started")
+            Button(action: { withAnimation(.spring()) { showOnboarding = false } }) {
+                HStack {
+                    Text("Get Started")
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 14, weight: .bold))
+                }
             }
             .cozyPrimaryButton()
             .padding(.horizontal, 20)
@@ -105,7 +151,7 @@ struct AuthView: View {
             
             // Already have account
             Button(action: { 
-                withAnimation(.easeInOut) { 
+                withAnimation(.spring()) { 
                     showOnboarding = false
                     isSignUp = false
                 }
@@ -128,43 +174,44 @@ struct AuthView: View {
             VStack(spacing: 28) {
                 // Back button
                 HStack {
-                    Button(action: { withAnimation(.easeInOut) { showOnboarding = true } }) {
+                    Button(action: { withAnimation(.spring()) { showOnboarding = true } }) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(HalfisiesTheme.textSecondary)
-                            .padding(10)
+                            .padding(12)
                             .background(HalfisiesTheme.cardBackground)
                             .cornerRadius(HalfisiesTheme.cornerSmall)
+                            .shadow(color: HalfisiesTheme.shadowColor, radius: 4, y: 2)
                     }
                     Spacer()
                 }
                 .padding(.top, 12)
                 
                 // Logo & Title
-                VStack(spacing: 12) {
+                VStack(spacing: 14) {
                     ZStack {
                         Circle()
-                            .fill(HalfisiesTheme.primary)
-                            .frame(width: 64, height: 64)
+                            .fill(HalfisiesTheme.primaryGradient)
+                            .frame(width: 72, height: 72)
                         
                         Image(systemName: "person.2.fill")
-                            .font(.system(size: 26))
+                            .font(.system(size: 28))
                             .foregroundColor(.white)
                     }
-                    .shadow(color: HalfisiesTheme.shadowColor, radius: 6, y: 2)
+                    .shadow(color: HalfisiesTheme.primary.opacity(0.4), radius: 12, y: 4)
                     
-                    Text(isSignUp ? "Create Account" : "Welcome Back")
+                    Text(isSignUp ? "Join the fun! 🎉" : "Welcome back! 👋")
                         .font(.system(size: 26, weight: .bold, design: .rounded))
                         .foregroundColor(HalfisiesTheme.textPrimary)
                     
-                    Text(isSignUp ? "Start saving on subscriptions" : "Sign in to continue")
+                    Text(isSignUp ? "Create your free account" : "Sign in to continue saving")
                         .font(.system(size: 15))
                         .foregroundColor(HalfisiesTheme.textMuted)
                 }
                 
                 // Form Toggle
                 HStack(spacing: 0) {
-                    Button(action: { withAnimation(.easeInOut) { isSignUp = false } }) {
+                    Button(action: { withAnimation(.spring()) { isSignUp = false } }) {
                         Text("Sign In")
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
                             .foregroundColor(isSignUp ? HalfisiesTheme.textMuted : .white)
@@ -174,7 +221,7 @@ struct AuthView: View {
                             .cornerRadius(HalfisiesTheme.cornerSmall)
                     }
                     
-                    Button(action: { withAnimation(.easeInOut) { isSignUp = true } }) {
+                    Button(action: { withAnimation(.spring()) { isSignUp = true } }) {
                         Text("Sign Up")
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
                             .foregroundColor(isSignUp ? .white : HalfisiesTheme.textMuted)
@@ -187,6 +234,7 @@ struct AuthView: View {
                 .padding(4)
                 .background(HalfisiesTheme.cardBackground)
                 .cornerRadius(HalfisiesTheme.cornerMedium)
+                .shadow(color: HalfisiesTheme.shadowColor, radius: 8, y: 2)
                 
                 // Form Fields
                 VStack(spacing: 14) {
@@ -194,7 +242,8 @@ struct AuthView: View {
                         CozyTextField(
                             icon: "person",
                             placeholder: "Your name",
-                            text: $viewModel.displayName
+                            text: $viewModel.displayName,
+                            iconColor: HalfisiesTheme.coral
                         )
                     }
                     
@@ -202,14 +251,16 @@ struct AuthView: View {
                         icon: "envelope",
                         placeholder: "Email address",
                         text: $viewModel.email,
-                        keyboardType: .emailAddress
+                        keyboardType: .emailAddress,
+                        iconColor: HalfisiesTheme.secondary
                     )
                     
                     CozyTextField(
                         icon: "lock",
                         placeholder: "Password",
                         text: $viewModel.password,
-                        isSecure: true
+                        isSecure: true,
+                        iconColor: HalfisiesTheme.primary
                     )
                     
                     // Error Message
@@ -219,10 +270,10 @@ struct AuthView: View {
                             Text(error)
                         }
                         .font(.system(size: 14))
-                        .foregroundColor(HalfisiesTheme.error)
+                        .foregroundColor(HalfisiesTheme.coral)
                         .padding(12)
                         .frame(maxWidth: .infinity)
-                        .background(HalfisiesTheme.error.opacity(0.1))
+                        .background(HalfisiesTheme.coral.opacity(0.1))
                         .cornerRadius(HalfisiesTheme.cornerSmall)
                     }
                     
@@ -242,6 +293,8 @@ struct AuthView: View {
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
                                 Text(isSignUp ? "Create Account" : "Sign In")
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 14, weight: .bold))
                             }
                         }
                     }
@@ -300,10 +353,15 @@ struct ValuePropRow: View {
     
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(color)
-                .frame(width: 24)
+            ZStack {
+                Circle()
+                    .fill(color.opacity(0.15))
+                    .frame(width: 36, height: 36)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 16))
+                    .foregroundColor(color)
+            }
             
             Text(text)
                 .font(.system(size: 15, design: .rounded))
@@ -318,12 +376,13 @@ struct ValuePropRow: View {
 struct OnboardingStat: View {
     let value: String
     let label: String
+    var color: Color = HalfisiesTheme.primary
     
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundColor(HalfisiesTheme.primary)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundColor(color)
             
             Text(label)
                 .font(.system(size: 12))
@@ -340,12 +399,13 @@ struct CozyTextField: View {
     @Binding var text: String
     var keyboardType: UIKeyboardType = .default
     var isSecure: Bool = false
+    var iconColor: Color = HalfisiesTheme.primary
     
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 16))
-                .foregroundColor(HalfisiesTheme.textMuted)
+                .foregroundColor(iconColor)
                 .frame(width: 22)
             
             if isSecure {
@@ -361,10 +421,7 @@ struct CozyTextField: View {
         .padding(16)
         .background(HalfisiesTheme.cardBackground)
         .cornerRadius(HalfisiesTheme.cornerMedium)
-        .overlay(
-            RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
-                .stroke(HalfisiesTheme.border, lineWidth: 1)
-        )
+        .shadow(color: HalfisiesTheme.shadowColor, radius: 6, y: 2)
     }
 }
 

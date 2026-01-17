@@ -1,51 +1,76 @@
 //
 //  Theme.swift
-//  Halfisies
+//  Halfsies
 //
-//  Cozy, warm, trust-first UI theme
+//  Vibrant, playful, friendly UI theme
+//  Palette: https://coolors.co/palette/70d6ff-ff70a6-ff9770-ffd670
 //
 
 import SwiftUI
 
-// MARK: - Halfisies Theme Colors
+// MARK: - Halfsies Theme Colors
 struct HalfisiesTheme {
     
     // MARK: - Backgrounds
-    static let appBackground = Color(hex: "FAF7F2")      // Warm off-white
-    static let cardBackground = Color(hex: "F1EAE0")     // Soft sand
-    static let cardBackgroundAlt = Color(hex: "F7F3EC")  // Slightly lighter sand
+    static let appBackground = Color(hex: "FFF9F5")      // Warm cream white
+    static let cardBackground = Color(hex: "FFFFFF")     // Pure white cards
+    static let cardBackgroundAlt = Color(hex: "FFF5F8")  // Soft pink tint
     
-    // MARK: - Primary Brand
-    static let primary = Color(hex: "C97C5D")            // Muted terracotta
-    static let primaryLight = Color(hex: "D99B82")       // Lighter terracotta
-    static let primaryDark = Color(hex: "B06A4D")        // Darker terracotta
+    // MARK: - Primary Brand (Pink)
+    static let primary = Color(hex: "FF70A6")            // Vibrant pink
+    static let primaryLight = Color(hex: "FF99BF")       // Light pink
+    static let primaryDark = Color(hex: "E85A90")        // Dark pink
     
-    // MARK: - Secondary Accent
-    static let secondary = Color(hex: "8FA99B")          // Sage green
-    static let secondaryLight = Color(hex: "A8BDB0")     // Light sage
+    // MARK: - Secondary (Sky Blue)
+    static let secondary = Color(hex: "70D6FF")          // Sky blue
+    static let secondaryLight = Color(hex: "A0E4FF")     // Light blue
+    static let secondaryDark = Color(hex: "50B8E0")      // Deeper blue
+    
+    // MARK: - Accent Colors
+    static let coral = Color(hex: "FF9770")              // Warm coral
+    static let golden = Color(hex: "FFD670")             // Golden yellow
     
     // MARK: - Text Colors
-    static let textPrimary = Color(hex: "2F2A26")        // Near-black warm
-    static let textSecondary = Color(hex: "6B645E")      // Medium gray-brown
-    static let textMuted = Color(hex: "9A928B")          // Muted labels
+    static let textPrimary = Color(hex: "2D2D3A")        // Dark purple-gray
+    static let textSecondary = Color(hex: "6B6B7B")      // Medium gray
+    static let textMuted = Color(hex: "9D9DAD")          // Light gray
     
     // MARK: - Borders & Dividers
-    static let border = Color(hex: "E4DDD3")             // Card borders
-    static let divider = Color(hex: "DED6CB")            // Dividers
+    static let border = Color(hex: "F0E8E8")             // Soft pink-gray border
+    static let divider = Color(hex: "F5EDED")            // Light divider
     
     // MARK: - Feedback
-    static let success = Color(hex: "8FA99B")            // Sage green
-    static let warning = Color(hex: "E0A458")            // Warm amber
-    static let error = Color(hex: "C96B6B")              // Muted coral red
+    static let success = Color(hex: "70D6FF")            // Blue for success
+    static let warning = Color(hex: "FFD670")            // Golden for warning
+    static let error = Color(hex: "FF9770")              // Coral for error
     
     // MARK: - Shadows
-    static let shadowColor = Color(hex: "2F2A26").opacity(0.06)
+    static let shadowColor = Color(hex: "FF70A6").opacity(0.08)
     
     // MARK: - Corner Radii
-    static let cornerSmall: CGFloat = 8
-    static let cornerMedium: CGFloat = 12
-    static let cornerLarge: CGFloat = 16
+    static let cornerSmall: CGFloat = 10
+    static let cornerMedium: CGFloat = 14
+    static let cornerLarge: CGFloat = 20
     static let cornerPill: CGFloat = 50
+    
+    // MARK: - Gradients
+    static let primaryGradient = LinearGradient(
+        colors: [Color(hex: "FF70A6"), Color(hex: "FF9770")],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    
+    static let secondaryGradient = LinearGradient(
+        colors: [Color(hex: "70D6FF"), Color(hex: "A0E4FF")],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    
+    static let sunsetGradient = LinearGradient(
+        colors: [Color(hex: "FF70A6"), Color(hex: "FF9770"), Color(hex: "FFD670")],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 }
 
 // MARK: - Color Extension
@@ -77,7 +102,7 @@ extension Color {
 
 // MARK: - View Modifiers
 
-// Soft card style
+// Soft card style with pink shadow
 struct CozyCardStyle: ViewModifier {
     var padding: CGFloat = 16
     
@@ -86,11 +111,11 @@ struct CozyCardStyle: ViewModifier {
             .padding(padding)
             .background(HalfisiesTheme.cardBackground)
             .cornerRadius(HalfisiesTheme.cornerMedium)
-            .shadow(color: HalfisiesTheme.shadowColor, radius: 8, x: 0, y: 2)
+            .shadow(color: HalfisiesTheme.shadowColor, radius: 12, x: 0, y: 4)
     }
 }
 
-// Primary button style
+// Primary button style with gradient
 struct CozyPrimaryButtonStyle: ButtonStyle {
     var isFullWidth: Bool = true
     
@@ -102,12 +127,17 @@ struct CozyPrimaryButtonStyle: ButtonStyle {
             .padding(.vertical, 16)
             .padding(.horizontal, 24)
             .background(
-                configuration.isPressed 
-                    ? HalfisiesTheme.primaryDark 
-                    : HalfisiesTheme.primary
+                Group {
+                    if configuration.isPressed {
+                        HalfisiesTheme.primaryDark
+                    } else {
+                        HalfisiesTheme.primaryGradient
+                    }
+                }
             )
             .cornerRadius(HalfisiesTheme.cornerPill)
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .shadow(color: HalfisiesTheme.primary.opacity(0.3), radius: 8, x: 0, y: 4)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
@@ -123,13 +153,13 @@ struct CozySecondaryButtonStyle: ButtonStyle {
             .frame(maxWidth: isFullWidth ? .infinity : nil)
             .padding(.vertical, 14)
             .padding(.horizontal, 20)
-            .background(HalfisiesTheme.cardBackground)
+            .background(HalfisiesTheme.primary.opacity(0.1))
             .cornerRadius(HalfisiesTheme.cornerPill)
             .overlay(
                 RoundedRectangle(cornerRadius: HalfisiesTheme.cornerPill)
-                    .stroke(HalfisiesTheme.border, lineWidth: 1.5)
+                    .stroke(HalfisiesTheme.primary.opacity(0.3), lineWidth: 1.5)
             )
-            .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
             .animation(.easeInOut(duration: 0.15), value: configuration.isPressed)
     }
 }
@@ -141,13 +171,13 @@ struct CozyPillButtonStyle: ButtonStyle {
     
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 13, weight: .medium, design: .rounded))
+            .font(.system(size: 13, weight: .semibold, design: .rounded))
             .foregroundColor(isSelected ? .white : color)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
             .background(isSelected ? color : color.opacity(0.12))
             .cornerRadius(HalfisiesTheme.cornerPill)
-            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
     }
 }
 
