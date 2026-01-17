@@ -105,7 +105,7 @@ struct AuthView: View {
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .foregroundColor(HalfisiesTheme.textPrimary)
                 
-                Text("Share subscriptions,\nsave together! 🎉")
+                Text("Share subscriptions,\nsave together")
                     .font(.system(size: 18, weight: .medium, design: .rounded))
                     .foregroundColor(HalfisiesTheme.textSecondary)
                     .multilineTextAlignment(.center)
@@ -200,7 +200,7 @@ struct AuthView: View {
                     }
                     .shadow(color: HalfisiesTheme.primary.opacity(0.4), radius: 12, y: 4)
                     
-                    Text(isSignUp ? "Join the fun! 🎉" : "Welcome back! 👋")
+                    Text(isSignUp ? "Join the fun" : "Welcome back")
                         .font(.system(size: 26, weight: .bold, design: .rounded))
                         .foregroundColor(HalfisiesTheme.textPrimary)
                     

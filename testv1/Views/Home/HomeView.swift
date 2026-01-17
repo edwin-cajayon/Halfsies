@@ -58,7 +58,7 @@ struct HomeView: View {
     var headerView: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Hey there! 👋")
+                Text("Hey there,")
                     .font(.system(size: 14))
                     .foregroundColor(HalfisiesTheme.textMuted)
                 
@@ -140,7 +140,7 @@ struct HomeView: View {
             HStack(spacing: 8) {
                 // All button
                 Button(action: { selectedCategory = nil }) {
-                    Text("All ✨")
+                    Text("All")
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundColor(selectedCategory == nil ? .white : HalfisiesTheme.textSecondary)
                         .padding(.horizontal, 18)
@@ -175,7 +175,7 @@ struct HomeView: View {
     var listingsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Available Now 🔥")
+                Text("Available Now")
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundColor(HalfisiesTheme.textPrimary)
                 
@@ -238,7 +238,7 @@ struct HomeView: View {
                 .font(.system(size: 17, weight: .semibold, design: .rounded))
                 .foregroundColor(HalfisiesTheme.textPrimary)
             
-            Text("Try adjusting your filters or\nbe the first to share! 🎉")
+            Text("Try adjusting your filters or\nbe the first to share!")
                 .font(.system(size: 14))
                 .foregroundColor(HalfisiesTheme.textMuted)
                 .multilineTextAlignment(.center)
