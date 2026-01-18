@@ -11,6 +11,7 @@ struct ProfileView: View {
     @ObservedObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = ProfileViewModel()
     @State private var selectedTab = 0
+    @State private var showSettings = false
     
     var body: some View {
         ZStack {
@@ -31,8 +32,6 @@ struct ProfileView: View {
                         myRequestsSection
                     }
                     
-                    signOutButton
-                    
                     Spacer(minLength: 100)
                 }
                 .padding(.top, 20)
@@ -42,11 +41,29 @@ struct ProfileView: View {
             viewModel.setUser(authViewModel.currentUser)
             await viewModel.loadAllData()
         }
+        .sheet(isPresented: $showSettings) {
+            SettingsView(authViewModel: authViewModel)
+        }
     }
     
     // MARK: - Profile Header
     var profileHeader: some View {
         VStack(spacing: 14) {
+            // Settings button
+            HStack {
+                Spacer()
+                Button(action: { showSettings = true }) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(HalfisiesTheme.textMuted)
+                        .padding(10)
+                        .background(HalfisiesTheme.cardBackground)
+                        .cornerRadius(HalfisiesTheme.cornerSmall)
+                        .shadow(color: HalfisiesTheme.shadowColor, radius: 4, y: 2)
+                }
+            }
+            .padding(.bottom, 4)
+            
             // Avatar
             ZStack(alignment: .bottomTrailing) {
                 Circle()
@@ -334,18 +351,6 @@ struct ProfileView: View {
         .cornerRadius(HalfisiesTheme.cornerMedium)
     }
     
-    // MARK: - Sign Out
-    var signOutButton: some View {
-        Button(action: { authViewModel.signOut() }) {
-            HStack {
-                Image(systemName: "rectangle.portrait.and.arrow.right")
-                Text("Sign Out")
-            }
-        }
-        .cozySecondaryButton()
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
-    }
 }
 
 // MARK: - Verification Row
