@@ -26,7 +26,7 @@ class SubscriptionsViewModel: ObservableObject {
     @Published var newListingPricePerSeat = ""
     @Published var newListingDescription = ""
     
-    private let subscriptionService: MockSubscriptionService
+    private let subscriptionService: SubscriptionServiceProtocol
     
     var filteredListings: [SubscriptionListing] {
         var result = listings
@@ -48,8 +48,8 @@ class SubscriptionsViewModel: ObservableObject {
         return result
     }
     
-    init(subscriptionService: MockSubscriptionService = .shared) {
-        self.subscriptionService = subscriptionService
+    init(subscriptionService: SubscriptionServiceProtocol? = nil) {
+        self.subscriptionService = subscriptionService ?? ServiceContainer.subscriptions
     }
     
     // MARK: - Fetch Listings
@@ -59,8 +59,10 @@ class SubscriptionsViewModel: ObservableObject {
         
         do {
             listings = try await subscriptionService.fetchListings()
+            ServiceContainer.shared.logDebug("Fetched \(listings.count) listings")
         } catch {
             errorMessage = "Failed to load listings."
+            ServiceContainer.shared.logDebug("Error fetching listings: \(error)")
         }
         
         isLoading = false
@@ -102,9 +104,11 @@ class SubscriptionsViewModel: ObservableObject {
             clearNewListingForm()
             await fetchListings()
             isLoading = false
+            ServiceContainer.shared.logDebug("Created listing: \(listing.id)")
             return true
         } catch {
             errorMessage = "Failed to create listing."
+            ServiceContainer.shared.logDebug("Error creating listing: \(error)")
             isLoading = false
             return false
         }
@@ -116,6 +120,15 @@ class SubscriptionsViewModel: ObservableObject {
             requests = try await subscriptionService.fetchRequests(forListing: listingId)
         } catch {
             errorMessage = "Failed to load requests."
+        }
+    }
+    
+    func fetchMyRequests(userId: String) async -> [SeatRequest] {
+        do {
+            return try await subscriptionService.fetchMyRequests(userId: userId)
+        } catch {
+            errorMessage = "Failed to load your requests."
+            return []
         }
     }
     
@@ -132,6 +145,7 @@ class SubscriptionsViewModel: ObservableObject {
         do {
             _ = try await subscriptionService.createRequest(request)
             isLoading = false
+            ServiceContainer.shared.logDebug("Created seat request for listing: \(listing.id)")
             return true
         } catch {
             errorMessage = "Failed to send request."
@@ -145,6 +159,7 @@ class SubscriptionsViewModel: ObservableObject {
             try await subscriptionService.updateRequestStatus(requestId: request.id, status: .approved)
             await fetchRequests(forListing: request.listingId)
             await fetchListings()
+            ServiceContainer.shared.logDebug("Approved request: \(request.id)")
         } catch {
             errorMessage = "Failed to approve request."
         }
@@ -154,6 +169,7 @@ class SubscriptionsViewModel: ObservableObject {
         do {
             try await subscriptionService.updateRequestStatus(requestId: request.id, status: .rejected)
             await fetchRequests(forListing: request.listingId)
+            ServiceContainer.shared.logDebug("Rejected request: \(request.id)")
         } catch {
             errorMessage = "Failed to reject request."
         }

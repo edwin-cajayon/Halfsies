@@ -18,12 +18,12 @@ class AuthViewModel: ObservableObject {
     @Published var isAuthenticated = false
     @Published var currentUser: HalfisiesUser?
     
-    private let authService: MockAuthService
+    private let authService: AuthServiceProtocol
     
-    init(authService: MockAuthService = .shared) {
-        self.authService = authService
-        self.currentUser = authService.currentUser
-        self.isAuthenticated = authService.isAuthenticated
+    init(authService: AuthServiceProtocol? = nil) {
+        self.authService = authService ?? ServiceContainer.auth
+        self.currentUser = self.authService.currentUser
+        self.isAuthenticated = self.authService.isAuthenticated
     }
     
     // MARK: - Sign Up
@@ -98,6 +98,18 @@ class AuthViewModel: ObservableObject {
             isAuthenticated = false
         } catch {
             errorMessage = "Failed to sign out."
+        }
+    }
+    
+    // MARK: - Refresh User
+    func refreshUser() async {
+        guard let userId = currentUser?.id, AppConfig.useFirebase else { return }
+        
+        do {
+            let user = try await FirestoreService.shared.fetchUser(id: userId)
+            currentUser = user
+        } catch {
+            ServiceContainer.shared.logDebug("Failed to refresh user: \(error)")
         }
     }
     
