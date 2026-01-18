@@ -1,6 +1,6 @@
 //
 //  ServiceContainer.swift
-//  Halfisies
+//  Halfsies
 //
 //  Service container for dependency injection
 //  Toggle between mock and real Firebase services
@@ -12,7 +12,7 @@ import Foundation
 struct AppConfig {
     /// Set to `true` to use real Firebase services
     /// Set to `false` to use mock services (for development/testing)
-    static let useFirebase = false  // Change to `true` when Firebase is configured
+    static let useFirebase = true  // ✅ Firebase is now enabled!
     
     /// Set to `true` to enable debug logging
     static let debugMode = true
@@ -45,7 +45,7 @@ class ServiceContainer {
     // MARK: - Debug Helpers
     func logDebug(_ message: String) {
         if AppConfig.debugMode {
-            print("[Halfisies] \(message)")
+            print("[Halfsies] \(message)")
         }
     }
 }
