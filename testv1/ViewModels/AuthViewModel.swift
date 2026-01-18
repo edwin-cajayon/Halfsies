@@ -1,12 +1,14 @@
 //
 //  AuthViewModel.swift
-//  Halfisies
+//  Halfsies
 //
 //  Created by Edwin on 17/01/2026.
 //
 
 import Foundation
 import SwiftUI
+import AuthenticationServices
+import CryptoKit
 
 @MainActor
 class AuthViewModel: ObservableObject {
@@ -19,6 +21,7 @@ class AuthViewModel: ObservableObject {
     @Published var currentUser: HalfisiesUser?
     
     private let authService: AuthServiceProtocol
+    private var currentNonce: String?
     
     init(authService: AuthServiceProtocol? = nil) {
         self.authService = authService ?? ServiceContainer.auth
@@ -74,17 +77,59 @@ class AuthViewModel: ObservableObject {
     
     // MARK: - Sign In with Apple
     func signInWithApple() async {
+        // This method is called when using the custom button
+        // The actual flow is handled by handleAppleSignInRequest and handleAppleSignInCompletion
+        isLoading = true
+        errorMessage = nil
+    }
+    
+    // Generate nonce for Apple Sign-In request
+    func generateNonce() -> String {
+        let nonce = randomNonceString()
+        currentNonce = nonce
+        return nonce
+    }
+    
+    // Get SHA256 hash of nonce for Apple Sign-In
+    func sha256(_ input: String) -> String {
+        let inputData = Data(input.utf8)
+        let hashedData = SHA256.hash(data: inputData)
+        return hashedData.compactMap { String(format: "%02x", $0) }.joined()
+    }
+    
+    // Handle Apple Sign-In completion
+    func handleAppleSignInCompletion(result: Result<ASAuthorization, Error>) async {
         isLoading = true
         errorMessage = nil
         
-        do {
-            let user = try await authService.signInWithApple()
-            currentUser = user
-            isAuthenticated = true
-        } catch let error as AuthError {
-            errorMessage = error.localizedDescription
-        } catch {
-            errorMessage = "Apple Sign In failed. Please try again."
+        switch result {
+        case .success(let authorization):
+            if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
+                do {
+                    // Use FirebaseAuthService to handle the credential
+                    if let firebaseAuth = authService as? FirebaseAuthService {
+                        // Set the nonce in FirebaseAuthService
+                        firebaseAuth.setCurrentNonce(currentNonce)
+                        let user = try await firebaseAuth.handleAppleSignIn(credential: appleIDCredential)
+                        currentUser = user
+                        isAuthenticated = true
+                    } else {
+                        // Mock service - just create a mock user
+                        let user = try await authService.signInWithApple()
+                        currentUser = user
+                        isAuthenticated = true
+                    }
+                } catch let error as AuthError {
+                    errorMessage = error.localizedDescription
+                } catch {
+                    errorMessage = "Apple Sign In failed. Please try again."
+                }
+            }
+        case .failure(let error):
+            // User cancelled or error occurred
+            if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
+                errorMessage = "Apple Sign In failed: \(error.localizedDescription)"
+            }
         }
         
         isLoading = false
@@ -149,5 +194,21 @@ class AuthViewModel: ObservableObject {
         email = ""
         password = ""
         displayName = ""
+    }
+    
+    // MARK: - Helper Methods
+    private func randomNonceString(length: Int = 32) -> String {
+        precondition(length > 0)
+        var randomBytes = [UInt8](repeating: 0, count: length)
+        let errorCode = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
+        if errorCode != errSecSuccess {
+            fatalError("Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(errorCode)")
+        }
+        
+        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        let nonce = randomBytes.map { byte in
+            charset[Int(byte) % charset.count]
+        }
+        return String(nonce)
     }
 }

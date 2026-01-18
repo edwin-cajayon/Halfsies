@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AuthenticationServices
 
 struct AuthView: View {
     @EnvironmentObject var viewModel: AuthViewModel
@@ -270,17 +271,19 @@ struct AuthView: View {
                         .frame(height: 1)
                 }
                 
-                // Apple Sign In (Liquid Glass)
-                Button(action: {
-                    Task { await viewModel.signInWithApple() }
-                }) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "apple.logo")
-                            .font(.system(size: 18))
-                        Text("Continue with Apple")
+                // Apple Sign In (Native Button)
+                SignInWithAppleButton(.signIn) { request in
+                    let nonce = viewModel.generateNonce()
+                    request.requestedScopes = [.fullName, .email]
+                    request.nonce = viewModel.sha256(nonce)
+                } onCompletion: { result in
+                    Task {
+                        await viewModel.handleAppleSignInCompletion(result: result)
                     }
                 }
-                .cozySecondaryButton()
+                .signInWithAppleButtonStyle(.black)
+                .frame(height: 50)
+                .cornerRadius(HalfisiesTheme.cornerMedium)
                 .disabled(viewModel.isLoading)
                 
                 // Legal text

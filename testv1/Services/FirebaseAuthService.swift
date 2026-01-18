@@ -118,16 +118,17 @@ class FirebaseAuthService: NSObject, AuthServiceProtocol, ObservableObject {
     
     // MARK: - Sign In with Apple
     func signInWithApple() async throws -> HalfisiesUser {
-        // Generate nonce for security
-        let nonce = randomNonceString()
-        currentNonce = nonce
-        
-        // This needs to be called from a view with ASAuthorizationController
-        // For now, throw an error indicating it needs UI interaction
+        // This method is not directly used - Apple Sign In is handled via handleAppleSignIn
+        // The UI triggers ASAuthorizationController which calls handleAppleSignIn
         throw AuthError.unknown
     }
     
-    // Handle Apple Sign In credential (call this from your view)
+    // Set the nonce from the ViewModel (called before Apple Sign In)
+    func setCurrentNonce(_ nonce: String?) {
+        currentNonce = nonce
+    }
+    
+    // Handle Apple Sign In credential (called from AuthViewModel)
     func handleAppleSignIn(credential: ASAuthorizationAppleIDCredential) async throws -> HalfisiesUser {
         guard let nonce = currentNonce else {
             throw AuthError.unknown
