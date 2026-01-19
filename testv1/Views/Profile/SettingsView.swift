@@ -15,6 +15,7 @@ struct SettingsView: View {
     @AppStorage("emailNotifications") private var emailNotifications = true
     @State private var showDeleteConfirmation = false
     @State private var showSignOutConfirmation = false
+    @State private var showEditProfile = false
     
     var body: some View {
         ZStack {
@@ -75,6 +76,9 @@ struct SettingsView: View {
         } message: {
             Text("This will permanently delete your account and all your data. This action cannot be undone.")
         }
+        .sheet(isPresented: $showEditProfile) {
+            EditProfileView(authViewModel: authViewModel)
+        }
     }
     
     // MARK: - Header
@@ -124,7 +128,7 @@ struct SettingsView: View {
                     iconColor: HalfisiesTheme.secondary,
                     title: "Edit Profile"
                 ) {
-                    // Navigate to edit profile
+                    showEditProfile = true
                 }
             }
         }
@@ -392,7 +396,9 @@ struct SettingsNavigationRow: View {
                     .foregroundColor(HalfisiesTheme.textMuted.opacity(0.6))
             }
             .padding(.vertical, 10)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 }
 
