@@ -28,6 +28,8 @@ struct ProfileView: View {
                     
                     if selectedTab == 0 {
                         myListingsSection
+                    } else if selectedTab == 1 {
+                        incomingRequestsSection
                     } else {
                         myRequestsSection
                     }
@@ -258,22 +260,45 @@ struct ProfileView: View {
     var tabSelector: some View {
         HStack(spacing: 0) {
             Button(action: { withAnimation(.easeInOut) { selectedTab = 0 } }) {
-                Text("My Listings")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                Text("Listings")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .foregroundColor(selectedTab == 0 ? .white : HalfisiesTheme.textMuted)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 10)
                     .background(selectedTab == 0 ? HalfisiesTheme.primary : Color.clear)
                     .cornerRadius(HalfisiesTheme.cornerSmall)
             }
             
             Button(action: { withAnimation(.easeInOut) { selectedTab = 1 } }) {
-                Text("My Requests")
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundColor(selectedTab == 1 ? .white : HalfisiesTheme.textMuted)
+                HStack(spacing: 4) {
+                    Text("Incoming")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    
+                    // Badge for pending incoming
+                    if viewModel.pendingIncomingCount > 0 {
+                        Text("\(viewModel.pendingIncomingCount)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(selectedTab == 1 ? Color.white.opacity(0.3) : HalfisiesTheme.coral)
+                            .cornerRadius(8)
+                    }
+                }
+                .foregroundColor(selectedTab == 1 ? .white : HalfisiesTheme.textMuted)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(selectedTab == 1 ? HalfisiesTheme.primary : Color.clear)
+                .cornerRadius(HalfisiesTheme.cornerSmall)
+            }
+            
+            Button(action: { withAnimation(.easeInOut) { selectedTab = 2 } }) {
+                Text("Requests")
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundColor(selectedTab == 2 ? .white : HalfisiesTheme.textMuted)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(selectedTab == 1 ? HalfisiesTheme.primary : Color.clear)
+                    .padding(.vertical, 10)
+                    .background(selectedTab == 2 ? HalfisiesTheme.primary : Color.clear)
                     .cornerRadius(HalfisiesTheme.cornerSmall)
             }
         }
@@ -351,6 +376,49 @@ struct ProfileView: View {
         .cornerRadius(HalfisiesTheme.cornerMedium)
     }
     
+    // MARK: - Incoming Requests Section
+    var incomingRequestsSection: some View {
+        VStack(spacing: 12) {
+            if viewModel.incomingRequests.isEmpty {
+                emptyIncoming
+            } else {
+                ForEach(viewModel.incomingRequests) { request in
+                    IncomingRequestCard(
+                        request: request,
+                        onApprove: {
+                            Task { await viewModel.approveRequest(request) }
+                        },
+                        onReject: {
+                            Task { await viewModel.rejectRequest(request) }
+                        }
+                    )
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    var emptyIncoming: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "tray")
+                .font(.system(size: 32))
+                .foregroundColor(HalfisiesTheme.textMuted)
+            
+            Text("No incoming requests")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(HalfisiesTheme.textPrimary)
+            
+            Text("When someone wants to join your subscription, you'll see it here")
+                .font(.system(size: 14))
+                .foregroundColor(HalfisiesTheme.textMuted)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .padding(.horizontal, 20)
+        .background(HalfisiesTheme.cardBackground)
+        .cornerRadius(HalfisiesTheme.cornerMedium)
+    }
 }
 
 // MARK: - Verification Row
@@ -509,6 +577,129 @@ struct RequestCard: View {
                 .cornerRadius(HalfisiesTheme.cornerSmall)
         }
         .cozyCard(padding: 14)
+    }
+}
+
+// MARK: - Incoming Request Card (with approve/reject)
+struct IncomingRequestCard: View {
+    let request: SeatRequest
+    let onApprove: () -> Void
+    let onReject: () -> Void
+    
+    @State private var isProcessing = false
+    
+    var body: some View {
+        VStack(spacing: 14) {
+            // Request info
+            HStack(spacing: 12) {
+                // Requester avatar
+                Circle()
+                    .fill(HalfisiesTheme.primary.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Text(String(request.requesterName.prefix(1).uppercased()))
+                            .font(.system(size: 18, weight: .bold, design: .rounded))
+                            .foregroundColor(HalfisiesTheme.primary)
+                    )
+                
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(request.requesterName)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundColor(HalfisiesTheme.textPrimary)
+                    
+                    Text("wants to join your subscription")
+                        .font(.system(size: 13))
+                        .foregroundColor(HalfisiesTheme.textMuted)
+                }
+                
+                Spacer()
+                
+                // Time ago
+                Text(timeAgo(from: request.createdAt))
+                    .font(.system(size: 11))
+                    .foregroundColor(HalfisiesTheme.textMuted)
+            }
+            
+            // Message if any
+            if !request.message.isEmpty {
+                HStack {
+                    Text("\"\(request.message)\"")
+                        .font(.system(size: 14, design: .rounded))
+                        .foregroundColor(HalfisiesTheme.textSecondary)
+                        .italic()
+                        .lineLimit(2)
+                    Spacer()
+                }
+                .padding(12)
+                .background(HalfisiesTheme.appBackground)
+                .cornerRadius(HalfisiesTheme.cornerSmall)
+            }
+            
+            // Action buttons
+            if request.status == .pending {
+                HStack(spacing: 12) {
+                    // Reject button
+                    Button(action: {
+                        isProcessing = true
+                        onReject()
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("Decline")
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundColor(HalfisiesTheme.error)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(HalfisiesTheme.error.opacity(0.1))
+                        .cornerRadius(HalfisiesTheme.cornerSmall)
+                    }
+                    .disabled(isProcessing)
+                    
+                    // Approve button
+                    Button(action: {
+                        isProcessing = true
+                        onApprove()
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text("Approve")
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(HalfisiesTheme.secondary)
+                        .cornerRadius(HalfisiesTheme.cornerSmall)
+                    }
+                    .disabled(isProcessing)
+                }
+            } else {
+                // Already processed
+                HStack {
+                    Image(systemName: request.status == .approved ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(request.status == .approved ? HalfisiesTheme.secondary : HalfisiesTheme.error)
+                    Text(request.status == .approved ? "Approved" : "Declined")
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundColor(request.status == .approved ? HalfisiesTheme.secondary : HalfisiesTheme.error)
+                    Spacer()
+                }
+            }
+        }
+        .padding(16)
+        .background(HalfisiesTheme.cardBackground)
+        .cornerRadius(HalfisiesTheme.cornerMedium)
+        .shadow(color: HalfisiesTheme.shadowColor, radius: 8, y: 3)
+    }
+    
+    func timeAgo(from date: Date) -> String {
+        let seconds = Int(-date.timeIntervalSinceNow)
+        if seconds < 60 { return "Just now" }
+        if seconds < 3600 { return "\(seconds / 60)m ago" }
+        if seconds < 86400 { return "\(seconds / 3600)h ago" }
+        return "\(seconds / 86400)d ago"
     }
 }
 

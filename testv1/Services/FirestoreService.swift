@@ -63,16 +63,37 @@ class FirestoreService: SubscriptionServiceProtocol, ObservableObject {
     // MARK: - Listing Operations
     
     func fetchListings() async throws -> [SubscriptionListing] {
+        // Fetch ALL listings (no filters) for debugging
         let snapshot = try await db.collection(listingsCollection)
-            .whereField("isActive", isEqualTo: true)
-            .whereField("availableSeats", isGreaterThan: 0)
-            .order(by: "availableSeats", descending: false)
-            .order(by: "createdAt", descending: true)
             .getDocuments()
         
-        return snapshot.documents.compactMap { doc in
-            try? decodeListing(doc.data(), id: doc.documentID)
+        print("[Halfsies] Fetched \(snapshot.documents.count) documents from Firestore")
+        
+        // Debug: print each document
+        for doc in snapshot.documents {
+            print("[Halfsies] Document \(doc.documentID): \(doc.data())")
         }
+        
+        // Decode listings
+        let listings = snapshot.documents.compactMap { doc -> SubscriptionListing? in
+            do {
+                return try decodeListing(doc.data(), id: doc.documentID)
+            } catch {
+                print("[Halfsies] Failed to decode document \(doc.documentID): \(error)")
+                return nil
+            }
+        }
+        
+        print("[Halfsies] Successfully decoded \(listings.count) listings")
+        
+        // Filter for active listings with available seats
+        let filtered = listings
+            .filter { $0.isActive && $0.availableSeats > 0 }
+            .sorted { $0.createdAt > $1.createdAt }
+        
+        print("[Halfsies] After filtering: \(filtered.count) listings")
+        
+        return filtered
     }
     
     func fetchListing(id: String) async throws -> SubscriptionListing? {
@@ -98,13 +119,23 @@ class FirestoreService: SubscriptionServiceProtocol, ObservableObject {
     
     func createListing(_ listing: SubscriptionListing) async throws -> SubscriptionListing {
         let data = encodeListing(listing)
+        print("[Halfsies] Creating listing with ID: \(listing.id)")
+        print("[Halfsies] Listing data: \(data)")
+        
         let docRef = db.collection(listingsCollection).document(listing.id)
         try await docRef.setData(data)
+        print("[Halfsies] Listing created successfully in Firestore")
         
         // Update user's isOwner flag
-        try await db.collection(usersCollection).document(listing.ownerId).updateData([
-            "isOwner": true
-        ])
+        do {
+            try await db.collection(usersCollection).document(listing.ownerId).updateData([
+                "isOwner": true
+            ])
+            print("[Halfsies] Updated user isOwner flag")
+        } catch {
+            print("[Halfsies] Failed to update user isOwner: \(error)")
+            // Don't fail the whole operation for this
+        }
         
         return listing
     }
@@ -167,8 +198,6 @@ class FirestoreService: SubscriptionServiceProtocol, ObservableObject {
         for batch in batches {
             let snapshot = try await db.collection(requestsCollection)
                 .whereField("listingId", in: batch)
-                .whereField("status", isEqualTo: "pending")
-                .order(by: "createdAt", descending: true)
                 .getDocuments()
             
             let requests = snapshot.documents.compactMap { doc in
@@ -177,7 +206,10 @@ class FirestoreService: SubscriptionServiceProtocol, ObservableObject {
             allRequests.append(contentsOf: requests)
         }
         
+        // Filter for pending and sort in memory
         return allRequests
+            .filter { $0.status == .pending }
+            .sorted { $0.createdAt > $1.createdAt }
     }
     
     func createRequest(_ request: SeatRequest) async throws -> SeatRequest {
@@ -211,13 +243,15 @@ class FirestoreService: SubscriptionServiceProtocol, ObservableObject {
     func listenToListings(completion: @escaping ([SubscriptionListing]) -> Void) -> ListenerRegistration {
         return db.collection(listingsCollection)
             .whereField("isActive", isEqualTo: true)
-            .whereField("availableSeats", isGreaterThan: 0)
             .addSnapshotListener { snapshot, error in
                 guard let documents = snapshot?.documents else { return }
                 
                 let listings = documents.compactMap { doc in
                     try? self.decodeListing(doc.data(), id: doc.documentID)
                 }
+                    .filter { $0.availableSeats > 0 }
+                    .sorted { $0.createdAt > $1.createdAt }
+                
                 completion(listings)
             }
     }
