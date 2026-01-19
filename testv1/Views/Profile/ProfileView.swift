@@ -29,6 +29,8 @@ struct ProfileView: View {
                     if selectedTab == 0 {
                         myListingsSection
                     } else if selectedTab == 1 {
+                        activeSubscriptionsSection
+                    } else if selectedTab == 2 {
                         incomingRequestsSection
                     } else {
                         myRequestsSection
@@ -259,9 +261,10 @@ struct ProfileView: View {
     // MARK: - Tab Selector
     var tabSelector: some View {
         HStack(spacing: 0) {
+            // My Listings
             Button(action: { withAnimation(.easeInOut) { selectedTab = 0 } }) {
                 Text("Listings")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundColor(selectedTab == 0 ? .white : HalfisiesTheme.textMuted)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
@@ -269,20 +272,20 @@ struct ProfileView: View {
                     .cornerRadius(HalfisiesTheme.cornerSmall)
             }
             
+            // Active Subscriptions (joined)
             Button(action: { withAnimation(.easeInOut) { selectedTab = 1 } }) {
-                HStack(spacing: 4) {
-                    Text("Incoming")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                HStack(spacing: 3) {
+                    Text("Active")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
                     
-                    // Badge for pending incoming
-                    if viewModel.pendingIncomingCount > 0 {
-                        Text("\(viewModel.pendingIncomingCount)")
-                            .font(.system(size: 10, weight: .bold))
+                    if viewModel.approvedRequestsCount > 0 {
+                        Text("\(viewModel.approvedRequestsCount)")
+                            .font(.system(size: 9, weight: .bold))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 5)
+                            .padding(.horizontal, 4)
                             .padding(.vertical, 2)
-                            .background(selectedTab == 1 ? Color.white.opacity(0.3) : HalfisiesTheme.coral)
-                            .cornerRadius(8)
+                            .background(selectedTab == 1 ? Color.white.opacity(0.3) : HalfisiesTheme.secondary)
+                            .cornerRadius(6)
                     }
                 }
                 .foregroundColor(selectedTab == 1 ? .white : HalfisiesTheme.textMuted)
@@ -292,13 +295,37 @@ struct ProfileView: View {
                 .cornerRadius(HalfisiesTheme.cornerSmall)
             }
             
+            // Incoming Requests
             Button(action: { withAnimation(.easeInOut) { selectedTab = 2 } }) {
+                HStack(spacing: 3) {
+                    Text("Incoming")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    
+                    if viewModel.pendingIncomingCount > 0 {
+                        Text("\(viewModel.pendingIncomingCount)")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(selectedTab == 2 ? Color.white.opacity(0.3) : HalfisiesTheme.coral)
+                            .cornerRadius(6)
+                    }
+                }
+                .foregroundColor(selectedTab == 2 ? .white : HalfisiesTheme.textMuted)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(selectedTab == 2 ? HalfisiesTheme.primary : Color.clear)
+                .cornerRadius(HalfisiesTheme.cornerSmall)
+            }
+            
+            // My Requests
+            Button(action: { withAnimation(.easeInOut) { selectedTab = 3 } }) {
                 Text("Requests")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundColor(selectedTab == 2 ? .white : HalfisiesTheme.textMuted)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundColor(selectedTab == 3 ? .white : HalfisiesTheme.textMuted)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(selectedTab == 2 ? HalfisiesTheme.primary : Color.clear)
+                    .background(selectedTab == 3 ? HalfisiesTheme.primary : Color.clear)
                     .cornerRadius(HalfisiesTheme.cornerSmall)
             }
         }
@@ -315,7 +342,11 @@ struct ProfileView: View {
                 emptyListings
             } else {
                 ForEach(viewModel.myListings) { listing in
-                    MyListingCard(listing: listing)
+                    MyListingCard(listing: listing) {
+                        Task {
+                            await viewModel.deleteListing(listing)
+                        }
+                    }
                 }
             }
         }
@@ -333,6 +364,40 @@ struct ProfileView: View {
                 .foregroundColor(HalfisiesTheme.textPrimary)
             
             Text("Share a subscription and start earning!")
+                .font(.system(size: 14))
+                .foregroundColor(HalfisiesTheme.textMuted)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .background(HalfisiesTheme.cardBackground)
+        .cornerRadius(HalfisiesTheme.cornerMedium)
+    }
+    
+    // MARK: - Active Subscriptions Section
+    var activeSubscriptionsSection: some View {
+        VStack(spacing: 12) {
+            if viewModel.joinedSubscriptions.isEmpty {
+                emptyActive
+            } else {
+                ForEach(viewModel.joinedSubscriptions) { listing in
+                    ActiveSubscriptionCard(listing: listing)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    var emptyActive: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 32))
+                .foregroundColor(HalfisiesTheme.textMuted)
+            
+            Text("No active subscriptions")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(HalfisiesTheme.textPrimary)
+            
+            Text("Join a subscription to start saving!")
                 .font(.system(size: 14))
                 .foregroundColor(HalfisiesTheme.textMuted)
         }
@@ -491,6 +556,9 @@ struct StatCard: View {
 // MARK: - My Listing Card
 struct MyListingCard: View {
     let listing: SubscriptionListing
+    let onDelete: () -> Void
+    
+    @State private var showDeleteConfirmation = false
     
     var body: some View {
         HStack(spacing: 12) {
@@ -525,8 +593,24 @@ struct MyListingCard: View {
                     .font(.system(size: 10))
                     .foregroundColor(HalfisiesTheme.textMuted)
             }
+            
+            // Delete button
+            Button(action: { showDeleteConfirmation = true }) {
+                Image(systemName: "trash")
+                    .font(.system(size: 14))
+                    .foregroundColor(HalfisiesTheme.error.opacity(0.7))
+                    .padding(8)
+            }
         }
         .cozyCard(padding: 14)
+        .alert("Delete Listing?", isPresented: $showDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete", role: .destructive) {
+                onDelete()
+            }
+        } message: {
+            Text("This will permanently delete this listing and all associated seat requests. This action cannot be undone.")
+        }
     }
 }
 
@@ -577,6 +661,75 @@ struct RequestCard: View {
                 .cornerRadius(HalfisiesTheme.cornerSmall)
         }
         .cozyCard(padding: 14)
+    }
+}
+
+// MARK: - Active Subscription Card
+struct ActiveSubscriptionCard: View {
+    let listing: SubscriptionListing
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(listing.service.brandColor.opacity(0.12))
+                    .frame(width: 48, height: 48)
+                
+                Image(systemName: listing.service.icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(listing.service.brandColor)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(listing.service.rawValue)
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundColor(HalfisiesTheme.textPrimary)
+                    
+                    Text("Active")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(HalfisiesTheme.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(HalfisiesTheme.secondary.opacity(0.12))
+                        .cornerRadius(4)
+                }
+                
+                Text(listing.planName)
+                    .font(.system(size: 13))
+                    .foregroundColor(HalfisiesTheme.textMuted)
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 10))
+                    Text("Shared by \(listing.ownerName)")
+                        .font(.system(size: 12))
+                }
+                .foregroundColor(HalfisiesTheme.textMuted)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("$\(String(format: "%.2f", listing.pricePerSeat))")
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundColor(HalfisiesTheme.secondary)
+                
+                Text("/month")
+                    .font(.system(size: 10))
+                    .foregroundColor(HalfisiesTheme.textMuted)
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
+                .fill(HalfisiesTheme.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
+                        .stroke(HalfisiesTheme.secondary.opacity(0.2), lineWidth: 1)
+                )
+        )
+        .shadow(color: HalfisiesTheme.shadowColor, radius: 6, y: 2)
     }
 }
 

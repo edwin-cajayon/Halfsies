@@ -13,6 +13,7 @@ class ProfileViewModel: ObservableObject {
     @Published var myListings: [SubscriptionListing] = []
     @Published var myRequests: [SeatRequest] = []
     @Published var incomingRequests: [SeatRequest] = []
+    @Published var joinedSubscriptions: [SubscriptionListing] = [] // Subscriptions user has joined
     @Published var isLoading = false
     @Published var errorMessage: String?
     
@@ -24,6 +25,10 @@ class ProfileViewModel: ObservableObject {
     
     var approvedRequestsCount: Int {
         myRequests.filter { $0.status == .approved }.count
+    }
+    
+    var approvedRequests: [SeatRequest] {
+        myRequests.filter { $0.status == .approved }
     }
     
     var pendingIncomingCount: Int {
@@ -89,7 +94,13 @@ class ProfileViewModel: ObservableObject {
     }
     
     func fetchIncomingRequests() async {
-        guard let userId = user?.id else { return }
+        guard let userId = user?.id else { 
+            print("[Halfsies] No user ID for fetching incoming requests")
+            return 
+        }
+        
+        print("[Halfsies] Fetching incoming requests for user: \(userId)")
+        print("[Halfsies] User has \(myListings.count) listings")
         
         do {
             if AppConfig.useFirebase {
@@ -103,8 +114,12 @@ class ProfileViewModel: ObservableObject {
                 }
                 incomingRequests = allIncoming
             }
-            ServiceContainer.shared.logDebug("Fetched \(incomingRequests.count) incoming requests")
+            print("[Halfsies] Fetched \(incomingRequests.count) incoming requests")
+            for request in incomingRequests {
+                print("[Halfsies] Request from: \(request.requesterName), status: \(request.status)")
+            }
         } catch {
+            print("[Halfsies] Error fetching incoming requests: \(error)")
             errorMessage = "Failed to load incoming requests."
         }
     }
@@ -130,9 +145,50 @@ class ProfileViewModel: ObservableObject {
         }
     }
     
+    func deleteListing(_ listing: SubscriptionListing) async {
+        isLoading = true
+        
+        do {
+            if AppConfig.useFirebase {
+                try await (subscriptionService as? FirestoreService)?.deleteListing(id: listing.id)
+            }
+            // Remove from local array immediately for UI feedback
+            myListings.removeAll { $0.id == listing.id }
+            ServiceContainer.shared.logDebug("Deleted listing: \(listing.id)")
+            
+            // Refresh data
+            await fetchMyListings()
+            await fetchIncomingRequests()
+        } catch {
+            errorMessage = "Failed to delete listing."
+            print("[Halfsies] Error deleting listing: \(error)")
+        }
+        
+        isLoading = false
+    }
+    
+    func fetchJoinedSubscriptions() async {
+        // Fetch listings for all approved requests
+        var joined: [SubscriptionListing] = []
+        
+        for request in approvedRequests {
+            do {
+                if let listing = try await subscriptionService.fetchListing(id: request.listingId) {
+                    joined.append(listing)
+                }
+            } catch {
+                print("[Halfsies] Failed to fetch listing for request: \(request.id)")
+            }
+        }
+        
+        joinedSubscriptions = joined
+        print("[Halfsies] Fetched \(joinedSubscriptions.count) joined subscriptions")
+    }
+    
     func loadAllData() async {
         await fetchMyListings()
         await fetchMyRequests()
         await fetchIncomingRequests()
+        await fetchJoinedSubscriptions()
     }
 }

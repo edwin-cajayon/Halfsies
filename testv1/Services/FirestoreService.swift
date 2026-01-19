@@ -107,14 +107,15 @@ class FirestoreService: SubscriptionServiceProtocol, ObservableObject {
     }
     
     func fetchUserListings(userId: String) async throws -> [SubscriptionListing] {
+        // Simplified query to avoid composite index requirement
         let snapshot = try await db.collection(listingsCollection)
             .whereField("ownerId", isEqualTo: userId)
-            .order(by: "createdAt", descending: true)
             .getDocuments()
         
+        // Sort in memory
         return snapshot.documents.compactMap { doc in
             try? decodeListing(doc.data(), id: doc.documentID)
-        }
+        }.sorted { $0.createdAt > $1.createdAt }
     }
     
     func createListing(_ listing: SubscriptionListing) async throws -> SubscriptionListing {
@@ -159,33 +160,42 @@ class FirestoreService: SubscriptionServiceProtocol, ObservableObject {
     // MARK: - Request Operations
     
     func fetchRequests(forListing listingId: String) async throws -> [SeatRequest] {
+        // Simplified query to avoid composite index requirement
         let snapshot = try await db.collection(requestsCollection)
             .whereField("listingId", isEqualTo: listingId)
-            .order(by: "createdAt", descending: true)
             .getDocuments()
         
+        // Sort in memory
         return snapshot.documents.compactMap { doc in
             try? decodeRequest(doc.data(), id: doc.documentID)
-        }
+        }.sorted { $0.createdAt > $1.createdAt }
     }
     
     func fetchMyRequests(userId: String) async throws -> [SeatRequest] {
+        // Simplified query to avoid composite index requirement
         let snapshot = try await db.collection(requestsCollection)
             .whereField("requesterId", isEqualTo: userId)
-            .order(by: "createdAt", descending: true)
             .getDocuments()
         
+        // Sort in memory
         return snapshot.documents.compactMap { doc in
             try? decodeRequest(doc.data(), id: doc.documentID)
-        }
+        }.sorted { $0.createdAt > $1.createdAt }
     }
     
     func fetchIncomingRequests(ownerId: String) async throws -> [SeatRequest] {
+        print("[Halfsies] fetchIncomingRequests for owner: \(ownerId)")
+        
         // First, get all listings owned by this user
         let listings = try await fetchUserListings(userId: ownerId)
         let listingIds = listings.map { $0.id }
         
-        guard !listingIds.isEmpty else { return [] }
+        print("[Halfsies] Owner has \(listings.count) listings with IDs: \(listingIds)")
+        
+        guard !listingIds.isEmpty else { 
+            print("[Halfsies] No listings found, returning empty")
+            return [] 
+        }
         
         // Fetch requests for these listings
         var allRequests: [SeatRequest] = []
@@ -200,16 +210,25 @@ class FirestoreService: SubscriptionServiceProtocol, ObservableObject {
                 .whereField("listingId", in: batch)
                 .getDocuments()
             
-            let requests = snapshot.documents.compactMap { doc in
-                try? decodeRequest(doc.data(), id: doc.documentID)
+            print("[Halfsies] Found \(snapshot.documents.count) requests for batch")
+            
+            let requests = snapshot.documents.compactMap { doc -> SeatRequest? in
+                let request = try? decodeRequest(doc.data(), id: doc.documentID)
+                if let r = request {
+                    print("[Halfsies] Request: \(r.requesterName), status: \(r.status.rawValue)")
+                }
+                return request
             }
             allRequests.append(contentsOf: requests)
         }
         
         // Filter for pending and sort in memory
-        return allRequests
+        let pendingRequests = allRequests
             .filter { $0.status == .pending }
             .sorted { $0.createdAt > $1.createdAt }
+        
+        print("[Halfsies] Returning \(pendingRequests.count) pending requests")
+        return pendingRequests
     }
     
     func createRequest(_ request: SeatRequest) async throws -> SeatRequest {
