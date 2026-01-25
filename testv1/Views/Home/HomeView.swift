@@ -10,8 +10,11 @@ import SwiftUI
 struct HomeView: View {
     @ObservedObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = SubscriptionsViewModel()
+    @ObservedObject private var searchHistoryManager = SearchHistoryManager.shared
     @State private var showCreateListing = false
     @State private var selectedCategory: ServiceCategory?
+    @State private var isSearchFocused = false
+    @FocusState private var searchFieldFocused: Bool
     
     var body: some View {
         NavigationStack {
@@ -25,6 +28,9 @@ struct HomeView: View {
                     
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 20) {
+                            // Email verification banner (if needed)
+                            EmailVerificationBanner(authViewModel: authViewModel)
+                            
                             welcomeBanner
                             searchBar
                             categoryPills
@@ -114,19 +120,66 @@ struct HomeView: View {
     
     // MARK: - Search Bar
     var searchBar: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(HalfisiesTheme.textMuted)
+        VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(HalfisiesTheme.textMuted)
+                
+                TextField("Search subscriptions...", text: $viewModel.searchText)
+                    .foregroundColor(HalfisiesTheme.textPrimary)
+                    .font(.system(size: 15))
+                    .focused($searchFieldFocused)
+                    .onSubmit {
+                        if !viewModel.searchText.isEmpty {
+                            searchHistoryManager.addSearch(viewModel.searchText)
+                        }
+                        isSearchFocused = false
+                        searchFieldFocused = false
+                    }
+                
+                // Clear button
+                if !viewModel.searchText.isEmpty {
+                    Button(action: {
+                        viewModel.searchText = ""
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(HalfisiesTheme.textMuted)
+                    }
+                }
+            }
+            .padding(14)
+            .background(HalfisiesTheme.cardBackground)
+            .cornerRadius(HalfisiesTheme.cornerMedium)
+            .shadow(color: HalfisiesTheme.shadowColor, radius: 6, y: 2)
+            .onTapGesture {
+                isSearchFocused = true
+                searchFieldFocused = true
+            }
             
-            TextField("Search subscriptions...", text: $viewModel.searchText)
-                .foregroundColor(HalfisiesTheme.textPrimary)
-                .font(.system(size: 15))
+            // Search History Dropdown
+            if isSearchFocused && viewModel.searchText.isEmpty && !searchHistoryManager.recentSearches.isEmpty {
+                SearchHistoryView(
+                    historyManager: searchHistoryManager,
+                    onSelect: { query in
+                        viewModel.searchText = query
+                        searchHistoryManager.addSearch(query)
+                        isSearchFocused = false
+                        searchFieldFocused = false
+                    },
+                    onDismiss: {
+                        isSearchFocused = false
+                        searchFieldFocused = false
+                    }
+                )
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .padding(14)
-        .background(HalfisiesTheme.cardBackground)
-        .cornerRadius(HalfisiesTheme.cornerMedium)
-        .shadow(color: HalfisiesTheme.shadowColor, radius: 6, y: 2)
         .padding(.horizontal, 20)
+        .animation(.easeInOut(duration: 0.2), value: isSearchFocused)
+        .onChange(of: searchFieldFocused) { focused in
+            isSearchFocused = focused
+        }
     }
     
     // MARK: - Category Pills (Liquid Glass)
@@ -243,79 +296,88 @@ struct HomeView: View {
 // MARK: - Cozy Subscription Card
 struct CozySubscriptionCard: View {
     let listing: SubscriptionListing
+    var showFavoriteButton: Bool = true
     
     var body: some View {
-        HStack(spacing: 14) {
-            // Service Icon
-            ZStack {
-                RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
-                    .fill(listing.service.brandColor.opacity(0.15))
-                    .frame(width: 54, height: 54)
-                
-                Image(systemName: listing.service.icon)
-                    .font(.system(size: 24))
-                    .foregroundColor(listing.service.brandColor)
-            }
-            
-            // Info
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(listing.service.rawValue)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundColor(HalfisiesTheme.textPrimary)
+        ZStack(alignment: .topTrailing) {
+            HStack(spacing: 14) {
+                // Service Icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
+                        .fill(listing.service.brandColor.opacity(0.15))
+                        .frame(width: 54, height: 54)
                     
-                    // Trust badge
-                    if listing.ownerTrustScore >= 80 {
-                        Image(systemName: "checkmark.seal.fill")
-                            .font(.system(size: 12))
+                    Image(systemName: listing.service.icon)
+                        .font(.system(size: 24))
+                        .foregroundColor(listing.service.brandColor)
+                }
+                
+                // Info
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(listing.service.rawValue)
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .foregroundColor(HalfisiesTheme.textPrimary)
+                        
+                        // Trust badge
+                        if listing.ownerTrustScore >= 80 {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(HalfisiesTheme.secondary)
+                        }
+                    }
+                    
+                    Text("\(listing.planName) • \(listing.ownerName)")
+                        .font(.system(size: 13))
+                        .foregroundColor(HalfisiesTheme.textMuted)
+                    
+                    // Seats indicator with colors
+                    HStack(spacing: 4) {
+                        ForEach(0..<min(listing.totalSeats, 5), id: \.self) { index in
+                            Circle()
+                                .fill(index < listing.occupiedSeats ? HalfisiesTheme.primary : HalfisiesTheme.border)
+                                .frame(width: 8, height: 8)
+                        }
+                        
+                        Text("\(listing.availableSeats) left")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(listing.availableSeats == 1 ? HalfisiesTheme.coral : HalfisiesTheme.textMuted)
+                            .padding(.leading, 4)
+                    }
+                }
+                
+                Spacer()
+                
+                // Price & Savings
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text("$\(String(format: "%.2f", listing.pricePerSeat))")
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(HalfisiesTheme.primary)
+                    
+                    Text("/month")
+                        .font(.system(size: 11))
+                        .foregroundColor(HalfisiesTheme.textMuted)
+                    
+                    // Savings badge
+                    if listing.savingsPercent > 0 {
+                        Text("-\(listing.savingsPercent)%")
+                            .font(.system(size: 10, weight: .bold))
                             .foregroundColor(HalfisiesTheme.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(HalfisiesTheme.secondary.opacity(0.15))
+                            .cornerRadius(HalfisiesTheme.cornerSmall)
                     }
-                }
-                
-                Text("\(listing.planName) • \(listing.ownerName)")
-                    .font(.system(size: 13))
-                    .foregroundColor(HalfisiesTheme.textMuted)
-                
-                // Seats indicator with colors
-                HStack(spacing: 4) {
-                    ForEach(0..<min(listing.totalSeats, 5), id: \.self) { index in
-                        Circle()
-                            .fill(index < listing.occupiedSeats ? HalfisiesTheme.primary : HalfisiesTheme.border)
-                            .frame(width: 8, height: 8)
-                    }
-                    
-                    Text("\(listing.availableSeats) left")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(listing.availableSeats == 1 ? HalfisiesTheme.coral : HalfisiesTheme.textMuted)
-                        .padding(.leading, 4)
                 }
             }
+            .cozyCard()
             
-            Spacer()
-            
-            // Price & Savings
-            VStack(alignment: .trailing, spacing: 4) {
-                Text("$\(String(format: "%.2f", listing.pricePerSeat))")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundColor(HalfisiesTheme.primary)
-                
-                Text("/month")
-                    .font(.system(size: 11))
-                    .foregroundColor(HalfisiesTheme.textMuted)
-                
-                // Savings badge
-                if listing.savingsPercent > 0 {
-                    Text("-\(listing.savingsPercent)%")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(HalfisiesTheme.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(HalfisiesTheme.secondary.opacity(0.15))
-                        .cornerRadius(HalfisiesTheme.cornerSmall)
-                }
+            // Favorite button overlay
+            if showFavoriteButton {
+                FavoriteButton(listingId: listing.id, size: 14, showBackground: false)
+                    .padding(12)
             }
         }
-        .cozyCard()
     }
 }
 

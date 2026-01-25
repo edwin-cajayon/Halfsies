@@ -10,7 +10,9 @@ import SwiftUI
 struct MainTabView: View {
     @ObservedObject var authViewModel: AuthViewModel
     @StateObject private var messagesViewModel = MessagesViewModel()
+    @ObservedObject private var onboardingManager = OnboardingManager.shared
     @State private var selectedTab = 0
+    @State private var showOnboarding = false
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -34,6 +36,17 @@ struct MainTabView: View {
             if let userId = authViewModel.currentUser?.id {
                 messagesViewModel.setCurrentUser(id: userId)
                 await messagesViewModel.fetchConversations()
+            }
+        }
+        .onAppear {
+            // Show onboarding on first launch
+            if !onboardingManager.hasCompletedOnboarding {
+                showOnboarding = true
+            }
+        }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingTutorialView {
+                showOnboarding = false
             }
         }
     }

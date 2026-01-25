@@ -11,12 +11,14 @@ struct ProfileView: View {
     @ObservedObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = ProfileViewModel()
     @StateObject private var messagesViewModel = MessagesViewModel()
+    @ObservedObject private var favoritesManager = FavoritesManager.shared
     @State private var selectedTab = 0
     @State private var showSettings = false
     @State private var listingToEdit: SubscriptionListing?
     @State private var listingToReview: SubscriptionListing?
     @State private var reviewedListings: Set<String> = []
     @State private var conversationToOpen: Conversation?
+    @State private var favoriteListings: [SubscriptionListing] = []
     
     var body: some View {
         ZStack {
@@ -26,6 +28,11 @@ struct ProfileView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
                     profileHeader
+                    
+                    // Email verification card (if needed)
+                    EmailVerificationCard(authViewModel: authViewModel)
+                        .padding(.horizontal, 20)
+                    
                     trustScoreCard
                     savingsCard
                     statsSection
@@ -39,8 +46,10 @@ struct ProfileView: View {
                         incomingRequestsSection
                     } else if selectedTab == 3 {
                         myRequestsSection
-                    } else {
+                    } else if selectedTab == 4 {
                         reviewsSection
+                    } else {
+                        favoritesSection
                     }
                     
                     Spacer(minLength: 100)
@@ -54,6 +63,7 @@ struct ProfileView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsView(authViewModel: authViewModel)
+                .environmentObject(ThemeManager.shared)
         }
     }
     
@@ -292,6 +302,11 @@ struct ProfileView: View {
                 // Reviews
                 TabButton(title: "Reviews", badge: viewModel.myReviews.count, isSelected: selectedTab == 4, badgeColor: HalfisiesTheme.warning) {
                     withAnimation(.easeInOut) { selectedTab = 4 }
+                }
+                
+                // Favorites
+                TabButton(title: "Saved", badge: FavoritesManager.shared.favoriteIds.count, isSelected: selectedTab == 5, badgeColor: HalfisiesTheme.primary) {
+                    withAnimation(.easeInOut) { selectedTab = 5 }
                 }
             }
             .padding(4)
@@ -576,6 +591,84 @@ struct ProfileView: View {
         .padding(.horizontal, 20)
         .background(HalfisiesTheme.cardBackground)
         .cornerRadius(HalfisiesTheme.cornerMedium)
+    }
+    
+    // MARK: - Favorites Section
+    var favoritesSection: some View {
+        VStack(spacing: 12) {
+            if favoriteListings.isEmpty && favoritesManager.favoriteIds.isEmpty {
+                emptyFavorites
+            } else if favoriteListings.isEmpty {
+                // Loading state
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text("Loading favorites...")
+                        .font(.system(size: 14))
+                        .foregroundColor(HalfisiesTheme.textMuted)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            } else {
+                ForEach(favoriteListings) { listing in
+                    NavigationLink(destination: ListingDetailView(
+                        listing: listing,
+                        authViewModel: authViewModel,
+                        subscriptionsViewModel: SubscriptionsViewModel()
+                    )) {
+                        CozySubscriptionCard(listing: listing, showFavoriteButton: true)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+        .task {
+            await loadFavoriteListings()
+        }
+        .onChange(of: favoritesManager.favoriteIds) { _ in
+            Task {
+                await loadFavoriteListings()
+            }
+        }
+    }
+    
+    var emptyFavorites: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "heart")
+                .font(.system(size: 32))
+                .foregroundColor(HalfisiesTheme.textMuted)
+            
+            Text("No saved listings")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(HalfisiesTheme.textPrimary)
+            
+            Text("Tap the heart icon on any listing to save it for later")
+                .font(.system(size: 14))
+                .foregroundColor(HalfisiesTheme.textMuted)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .padding(.horizontal, 20)
+        .background(HalfisiesTheme.cardBackground)
+        .cornerRadius(HalfisiesTheme.cornerMedium)
+    }
+    
+    private func loadFavoriteListings() async {
+        let ids = Array(favoritesManager.favoriteIds)
+        guard !ids.isEmpty else {
+            favoriteListings = []
+            return
+        }
+        
+        do {
+            // Fetch all listings and filter by favorites
+            let allListings = try await ServiceContainer.subscriptions.fetchListings()
+            favoriteListings = allListings.filter { ids.contains($0.id) }
+        } catch {
+            print("[Halfsies] Error loading favorite listings: \(error)")
+        }
     }
 }
 

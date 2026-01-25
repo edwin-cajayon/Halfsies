@@ -15,10 +15,12 @@ struct EditProfileView: View {
     @State private var displayName: String = ""
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var profileImage: Image?
+    @State private var profileUIImage: UIImage?
     @State private var isLoading = false
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var showSuccess = false
+    @State private var uploadProgress: String = ""
     
     var body: some View {
         ZStack {
@@ -96,20 +98,32 @@ struct EditProfileView: View {
             // Photo Display
             ZStack {
                 if let profileImage = profileImage {
+                    // Newly selected image
                     profileImage
                         .resizable()
                         .scaledToFill()
                         .frame(width: 120, height: 120)
                         .clipShape(Circle())
+                } else if let avatarURL = authViewModel.currentUser?.avatarURL,
+                          let url = URL(string: avatarURL) {
+                    // Existing avatar from URL
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 120, height: 120)
+                                .clipShape(Circle())
+                        case .failure, .empty:
+                            defaultAvatar
+                        @unknown default:
+                            defaultAvatar
+                        }
+                    }
                 } else {
-                    Circle()
-                        .fill(HalfisiesTheme.primary.opacity(0.15))
-                        .frame(width: 120, height: 120)
-                        .overlay(
-                            Text(String(displayName.prefix(1).uppercased()))
-                                .font(.system(size: 48, weight: .bold, design: .rounded))
-                                .foregroundColor(HalfisiesTheme.primary)
-                        )
+                    // Default initials avatar
+                    defaultAvatar
                 }
                 
                 // Camera badge
@@ -135,6 +149,7 @@ struct EditProfileView: View {
                 Task {
                     if let data = try? await newValue?.loadTransferable(type: Data.self),
                        let uiImage = UIImage(data: data) {
+                        profileUIImage = uiImage
                         profileImage = Image(uiImage: uiImage)
                     }
                 }
@@ -226,43 +241,66 @@ struct EditProfileView: View {
     
     // MARK: - Save Button
     var saveButton: some View {
-        Button(action: saveProfile) {
-            HStack(spacing: 8) {
-                if isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(0.9)
-                } else {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 15, weight: .bold))
-                    Text("Save Changes")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+        VStack(spacing: 8) {
+            Button(action: saveProfile) {
+                HStack(spacing: 8) {
+                    if isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(0.9)
+                    } else {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 15, weight: .bold))
+                        Text("Save Changes")
+                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    }
                 }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    canSave
+                        ? HalfisiesTheme.primary
+                        : HalfisiesTheme.textMuted.opacity(0.3)
+                )
+                .cornerRadius(HalfisiesTheme.cornerMedium)
+                .shadow(color: canSave ? HalfisiesTheme.primary.opacity(0.3) : Color.clear, radius: 8, y: 4)
             }
-            .foregroundColor(.white)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 16)
-            .background(
-                canSave
-                    ? HalfisiesTheme.primary
-                    : HalfisiesTheme.textMuted.opacity(0.3)
-            )
-            .cornerRadius(HalfisiesTheme.cornerMedium)
-            .shadow(color: canSave ? HalfisiesTheme.primary.opacity(0.3) : Color.clear, radius: 8, y: 4)
+            .disabled(!canSave || isLoading)
+            
+            // Upload progress text
+            if !uploadProgress.isEmpty {
+                Text(uploadProgress)
+                    .font(.system(size: 13))
+                    .foregroundColor(HalfisiesTheme.textMuted)
+            }
         }
-        .disabled(!canSave || isLoading)
     }
     
     // MARK: - Helpers
+    var defaultAvatar: some View {
+        Circle()
+            .fill(HalfisiesTheme.primary.opacity(0.15))
+            .frame(width: 120, height: 120)
+            .overlay(
+                Text(String(displayName.prefix(1).uppercased()))
+                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .foregroundColor(HalfisiesTheme.primary)
+            )
+    }
+    
     var canSave: Bool {
-        !displayName.trimmingCharacters(in: .whitespaces).isEmpty &&
-        displayName != authViewModel.currentUser?.displayName
+        let nameChanged = !displayName.trimmingCharacters(in: .whitespaces).isEmpty &&
+            displayName != authViewModel.currentUser?.displayName
+        let photoChanged = profileUIImage != nil
+        return nameChanged || photoChanged
     }
     
     func saveProfile() {
         guard canSave else { return }
         
         isLoading = true
+        uploadProgress = ""
         
         Task {
             do {
@@ -271,6 +309,24 @@ struct EditProfileView: View {
                     throw NSError(domain: "EditProfile", code: 1, userInfo: [NSLocalizedDescriptionKey: "User not found"])
                 }
                 
+                // Upload avatar if changed
+                if let uiImage = profileUIImage {
+                    await MainActor.run {
+                        uploadProgress = "Uploading photo..."
+                    }
+                    
+                    let avatarURL = try await ImageUploadService.shared.uploadAvatar(
+                        image: uiImage,
+                        userId: updatedUser.id
+                    )
+                    updatedUser.avatarURL = avatarURL.absoluteString
+                }
+                
+                await MainActor.run {
+                    uploadProgress = "Saving profile..."
+                }
+                
+                // Update display name
                 updatedUser.displayName = displayName.trimmingCharacters(in: .whitespaces)
                 
                 // Save to Firestore
@@ -280,12 +336,14 @@ struct EditProfileView: View {
                 await MainActor.run {
                     authViewModel.currentUser = updatedUser
                     isLoading = false
+                    uploadProgress = ""
                     showSuccess = true
                 }
             } catch {
                 await MainActor.run {
                     isLoading = false
-                    errorMessage = "Failed to save profile. Please try again."
+                    uploadProgress = ""
+                    errorMessage = error.localizedDescription
                     showError = true
                 }
             }

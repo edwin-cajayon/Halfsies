@@ -8,44 +8,84 @@
 
 import SwiftUI
 
+// MARK: - Theme Manager
+class ThemeManager: ObservableObject {
+    static let shared = ThemeManager()
+    
+    @AppStorage("isDarkMode") var isDarkMode: Bool = false
+    @AppStorage("useSystemTheme") var useSystemTheme: Bool = true
+    
+    var colorScheme: ColorScheme? {
+        if useSystemTheme {
+            return nil // Follow system
+        }
+        return isDarkMode ? .dark : .light
+    }
+}
+
 // MARK: - Halfsies Theme Colors
 struct HalfisiesTheme {
     
-    // MARK: - Backgrounds
-    static let appBackground = Color(hex: "FFF9F5")      // Warm cream white
-    static let cardBackground = Color(hex: "FFFFFF")     // Pure white cards
-    static let cardBackgroundAlt = Color(hex: "FFF5F8")  // Soft pink tint
+    // MARK: - Dynamic Colors (Light/Dark aware)
     
-    // MARK: - Primary Brand (Pink)
+    static var appBackground: Color {
+        Color("AppBackground", bundle: nil)
+    }
+    
+    static var cardBackground: Color {
+        Color("CardBackground", bundle: nil)
+    }
+    
+    static var cardBackgroundAlt: Color {
+        Color("CardBackgroundAlt", bundle: nil)
+    }
+    
+    static var textPrimary: Color {
+        Color("TextPrimary", bundle: nil)
+    }
+    
+    static var textSecondary: Color {
+        Color("TextSecondary", bundle: nil)
+    }
+    
+    static var textMuted: Color {
+        Color("TextMuted", bundle: nil)
+    }
+    
+    static var border: Color {
+        Color("Border", bundle: nil)
+    }
+    
+    static var divider: Color {
+        Color("Divider", bundle: nil)
+    }
+    
+    static var shadowColor: Color {
+        Color("ShadowColor", bundle: nil)
+    }
+    
+    // MARK: - Static Brand Colors (same in light/dark)
+    
+    // Primary Brand (Pink)
     static let primary = Color(hex: "FF70A6")            // Vibrant pink
     static let primaryLight = Color(hex: "FF99BF")       // Light pink
     static let primaryDark = Color(hex: "E85A90")        // Dark pink
     
-    // MARK: - Secondary (Sky Blue)
+    // Secondary (Sky Blue)
     static let secondary = Color(hex: "70D6FF")          // Sky blue
     static let secondaryLight = Color(hex: "A0E4FF")     // Light blue
     static let secondaryDark = Color(hex: "50B8E0")      // Deeper blue
     
-    // MARK: - Accent Colors
+    // Accent Colors
     static let coral = Color(hex: "FF9770")              // Warm coral
     static let golden = Color(hex: "FFD670")             // Golden yellow
     
-    // MARK: - Text Colors
-    static let textPrimary = Color(hex: "2D2D3A")        // Dark purple-gray
-    static let textSecondary = Color(hex: "6B6B7B")      // Medium gray
-    static let textMuted = Color(hex: "9D9DAD")          // Light gray
-    
-    // MARK: - Borders & Dividers
-    static let border = Color(hex: "F0E8E8")             // Soft pink-gray border
-    static let divider = Color(hex: "F5EDED")            // Light divider
-    
-    // MARK: - Feedback
+    // Feedback
     static let success = Color(hex: "70D6FF")            // Blue for success
     static let warning = Color(hex: "FFD670")            // Golden for warning
     static let error = Color(hex: "FF9770")              // Coral for error
     
-    // MARK: - Shadows
-    static let shadowColor = Color(hex: "FF70A6").opacity(0.08)
+    // Glass shadow
     static let glassShadow = Color.black.opacity(0.06)
     
     // MARK: - Corner Radii

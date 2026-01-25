@@ -83,6 +83,10 @@ class FirebaseAuthService: NSObject, AuthServiceProtocol, ObservableObject {
             
             try await FirestoreService.shared.createUser(user)
             
+            // Send verification email
+            try await result.user.sendEmailVerification()
+            print("[Halfsies] Verification email sent to: \(email)")
+            
             await MainActor.run {
                 self.currentUser = user
             }
@@ -91,6 +95,42 @@ class FirebaseAuthService: NSObject, AuthServiceProtocol, ObservableObject {
             
         } catch let error as NSError {
             throw mapFirebaseError(error)
+        }
+    }
+    
+    // MARK: - Email Verification
+    
+    var isEmailVerified: Bool {
+        Auth.auth().currentUser?.isEmailVerified ?? false
+    }
+    
+    func sendVerificationEmail() async throws {
+        guard let user = Auth.auth().currentUser else {
+            throw AuthError.userNotFound
+        }
+        
+        do {
+            try await user.sendEmailVerification()
+            print("[Halfsies] Verification email sent")
+        } catch let error as NSError {
+            throw mapFirebaseError(error)
+        }
+    }
+    
+    func reloadUser() async throws {
+        guard let user = Auth.auth().currentUser else {
+            throw AuthError.userNotFound
+        }
+        
+        try await user.reload()
+        
+        // Update local user's verification status
+        if var currentUser = self.currentUser {
+            currentUser.verifiedEmail = user.isEmailVerified
+            try? await FirestoreService.shared.updateUser(currentUser)
+            await MainActor.run {
+                self.currentUser = currentUser
+            }
         }
     }
     

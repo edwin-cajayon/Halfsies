@@ -9,6 +9,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var authViewModel: AuthViewModel
+    @EnvironmentObject var themeManager: ThemeManager
     @Environment(\.dismiss) private var dismiss
     
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
@@ -30,6 +31,9 @@ struct SettingsView: View {
                     
                     // Account Section
                     accountSection
+                    
+                    // Appearance Section
+                    appearanceSection
                     
                     // Notifications Section
                     notificationsSection
@@ -129,6 +133,35 @@ struct SettingsView: View {
                     title: "Edit Profile"
                 ) {
                     showEditProfile = true
+                }
+            }
+        }
+    }
+    
+    // MARK: - Appearance Section
+    var appearanceSection: some View {
+        SettingsSection(title: "Appearance") {
+            VStack(spacing: 0) {
+                // Use System Theme
+                SettingsToggleRow(
+                    icon: "iphone",
+                    iconColor: HalfisiesTheme.secondary,
+                    title: "Use System Theme",
+                    subtitle: "Match device appearance",
+                    isOn: $themeManager.useSystemTheme
+                )
+                
+                if !themeManager.useSystemTheme {
+                    SettingsDivider()
+                    
+                    // Dark Mode Toggle
+                    SettingsToggleRow(
+                        icon: "moon.fill",
+                        iconColor: HalfisiesTheme.primary,
+                        title: "Dark Mode",
+                        subtitle: themeManager.isDarkMode ? "Dark theme active" : "Light theme active",
+                        isOn: $themeManager.isDarkMode
+                    )
                 }
             }
         }
@@ -471,4 +504,5 @@ struct SettingsToggleRow: View {
 
 #Preview {
     SettingsView(authViewModel: AuthViewModel())
+        .environmentObject(ThemeManager.shared)
 }

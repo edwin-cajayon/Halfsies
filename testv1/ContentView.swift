@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var themeManager = ThemeManager.shared
     @State private var showSplash = true
     
     var body: some View {
@@ -31,6 +32,8 @@ struct ContentView: View {
                     .zIndex(1)
             }
         }
+        .preferredColorScheme(themeManager.colorScheme)
+        .environmentObject(themeManager)
         .onAppear {
             // Show splash for 2 seconds, then fade out
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
