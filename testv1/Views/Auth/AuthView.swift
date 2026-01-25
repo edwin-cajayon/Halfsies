@@ -12,6 +12,7 @@ struct AuthView: View {
     @EnvironmentObject var viewModel: AuthViewModel
     @State private var isSignUp = false
     @State private var showOnboarding = true
+    @State private var showForgotPassword = false
     
     var body: some View {
         ZStack {
@@ -50,6 +51,9 @@ struct AuthView: View {
                 authFormView
             }
         }
+        .sheet(isPresented: $showForgotPassword) {
+            ForgotPasswordView(authViewModel: viewModel)
+        }
     }
     
     // MARK: - Onboarding View
@@ -85,19 +89,6 @@ struct AuthView: View {
             .padding(.horizontal, 36)
             
             Spacer()
-            
-            // Colorful Stats
-            HStack(spacing: 0) {
-                OnboardingStat(value: "120+", label: "Services", color: HalfisiesTheme.secondary)
-                OnboardingStat(value: "10K+", label: "Happy Users", color: HalfisiesTheme.primary)
-                OnboardingStat(value: "$2M+", label: "Saved", color: HalfisiesTheme.golden)
-            }
-            .padding(.vertical, 20)
-            .background(HalfisiesTheme.cardBackground)
-            .cornerRadius(HalfisiesTheme.cornerLarge)
-            .shadow(color: HalfisiesTheme.shadowColor, radius: 16, y: 4)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 24)
             
             // Get Started Button (Liquid Glass)
             Button(action: { withAnimation(.spring()) { showOnboarding = false } }) {
@@ -216,6 +207,19 @@ struct AuthView: View {
                         iconColor: HalfisiesTheme.primary
                     )
                     
+                    // Forgot Password (Sign In only)
+                    if !isSignUp {
+                        HStack {
+                            Spacer()
+                            Button(action: { showForgotPassword = true }) {
+                                Text("Forgot Password?")
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundColor(HalfisiesTheme.primary)
+                            }
+                        }
+                        .padding(.top, -6)
+                    }
+                    
                     // Error Message
                     if let error = viewModel.errorMessage {
                         HStack(spacing: 8) {
@@ -324,26 +328,6 @@ struct ValuePropRow: View {
             
             Spacer()
         }
-    }
-}
-
-// MARK: - Onboarding Stat
-struct OnboardingStat: View {
-    let value: String
-    let label: String
-    var color: Color = HalfisiesTheme.primary
-    
-    var body: some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .foregroundColor(color)
-            
-            Text(label)
-                .font(.system(size: 12))
-                .foregroundColor(HalfisiesTheme.textMuted)
-        }
-        .frame(maxWidth: .infinity)
     }
 }
 

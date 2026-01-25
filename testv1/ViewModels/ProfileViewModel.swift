@@ -14,6 +14,7 @@ class ProfileViewModel: ObservableObject {
     @Published var myRequests: [SeatRequest] = []
     @Published var incomingRequests: [SeatRequest] = []
     @Published var joinedSubscriptions: [SubscriptionListing] = [] // Subscriptions user has joined
+    @Published var myReviews: [Review] = [] // Reviews about this user
     @Published var isLoading = false
     @Published var errorMessage: String?
     
@@ -130,6 +131,15 @@ class ProfileViewModel: ObservableObject {
             await fetchIncomingRequests()
             await fetchMyListings()
             ServiceContainer.shared.logDebug("Approved request: \(request.id)")
+            
+            // Send notification to the requester (local notification for now)
+            // In production, this would trigger a push notification to the requester's device
+            if let listing = myListings.first(where: { listing in
+                // Find the listing this request was for
+                true // We'd need the listing info here
+            }) {
+                // Notification would be sent to the requester
+            }
         } catch {
             errorMessage = "Failed to approve request."
         }
@@ -167,6 +177,28 @@ class ProfileViewModel: ObservableObject {
         isLoading = false
     }
     
+    func updateListing(_ listing: SubscriptionListing) async {
+        isLoading = true
+        
+        do {
+            try await subscriptionService.updateListing(listing)
+            ServiceContainer.shared.logDebug("Updated listing: \(listing.id)")
+            
+            // Update local array immediately for UI feedback
+            if let index = myListings.firstIndex(where: { $0.id == listing.id }) {
+                myListings[index] = listing
+            }
+            
+            // Refresh data
+            await fetchMyListings()
+        } catch {
+            errorMessage = "Failed to update listing."
+            print("[Halfsies] Error updating listing: \(error)")
+        }
+        
+        isLoading = false
+    }
+    
     func fetchJoinedSubscriptions() async {
         // Fetch listings for all approved requests
         var joined: [SubscriptionListing] = []
@@ -185,10 +217,92 @@ class ProfileViewModel: ObservableObject {
         print("[Halfsies] Fetched \(joinedSubscriptions.count) joined subscriptions")
     }
     
+    /// Find the request ID for a given listing that the user has joined
+    func findRequestId(forListing listingId: String) -> String? {
+        return approvedRequests.first { $0.listingId == listingId }?.id
+    }
+    
+    func leaveSubscription(listingId: String) async {
+        guard let requestId = findRequestId(forListing: listingId) else {
+            print("[Halfsies] Could not find request for listing: \(listingId)")
+            errorMessage = "Could not find your subscription request."
+            return
+        }
+        
+        isLoading = true
+        
+        do {
+            try await subscriptionService.leaveSubscription(requestId: requestId, listingId: listingId)
+            ServiceContainer.shared.logDebug("Left subscription: \(listingId)")
+            
+            // Refresh all data
+            await fetchMyRequests()
+            await fetchJoinedSubscriptions()
+        } catch {
+            errorMessage = "Failed to leave subscription."
+            print("[Halfsies] Error leaving subscription: \(error)")
+        }
+        
+        isLoading = false
+    }
+    
     func loadAllData() async {
         await fetchMyListings()
         await fetchMyRequests()
         await fetchIncomingRequests()
         await fetchJoinedSubscriptions()
+        await fetchMyReviews()
+    }
+    
+    // MARK: - Reviews
+    
+    func fetchMyReviews() async {
+        guard let userId = user?.id else { return }
+        
+        do {
+            myReviews = try await subscriptionService.fetchReviewsForUser(userId: userId)
+            print("[Halfsies] Fetched \(myReviews.count) reviews for user")
+        } catch {
+            print("[Halfsies] Error fetching reviews: \(error)")
+        }
+    }
+    
+    func submitReview(_ review: Review) async {
+        do {
+            _ = try await subscriptionService.createReview(review)
+            ServiceContainer.shared.logDebug("Created review for user: \(review.targetUserId)")
+        } catch {
+            errorMessage = "Failed to submit review."
+            print("[Halfsies] Error submitting review: \(error)")
+        }
+    }
+    
+    func hasReviewed(targetUserId: String, listingId: String) async -> Bool {
+        guard let userId = user?.id else { return false }
+        
+        do {
+            return try await subscriptionService.hasReviewed(
+                reviewerId: userId,
+                targetUserId: targetUserId,
+                listingId: listingId
+            )
+        } catch {
+            print("[Halfsies] Error checking review status: \(error)")
+            return false
+        }
+    }
+    
+    var averageRating: Double {
+        guard !myReviews.isEmpty else { return user?.rating ?? 5.0 }
+        let total = myReviews.reduce(0) { $0 + $1.rating }
+        return Double(total) / Double(myReviews.count)
+    }
+    
+    var ratingDistribution: [Int: Int] {
+        var distribution: [Int: Int] = [1: 0, 2: 0, 3: 0, 4: 0, 5: 0]
+        for review in myReviews {
+            distribution[review.rating, default: 0] += 1
+        }
+        return distribution
     }
 }

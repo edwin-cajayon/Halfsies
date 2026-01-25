@@ -10,8 +10,13 @@ import SwiftUI
 struct ProfileView: View {
     @ObservedObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = ProfileViewModel()
+    @StateObject private var messagesViewModel = MessagesViewModel()
     @State private var selectedTab = 0
     @State private var showSettings = false
+    @State private var listingToEdit: SubscriptionListing?
+    @State private var listingToReview: SubscriptionListing?
+    @State private var reviewedListings: Set<String> = []
+    @State private var conversationToOpen: Conversation?
     
     var body: some View {
         ZStack {
@@ -32,8 +37,10 @@ struct ProfileView: View {
                         activeSubscriptionsSection
                     } else if selectedTab == 2 {
                         incomingRequestsSection
-                    } else {
+                    } else if selectedTab == 3 {
                         myRequestsSection
+                    } else {
+                        reviewsSection
                     }
                     
                     Spacer(minLength: 100)
@@ -260,76 +267,35 @@ struct ProfileView: View {
     
     // MARK: - Tab Selector
     var tabSelector: some View {
-        HStack(spacing: 0) {
-            // My Listings
-            Button(action: { withAnimation(.easeInOut) { selectedTab = 0 } }) {
-                Text("Listings")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundColor(selectedTab == 0 ? .white : HalfisiesTheme.textMuted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(selectedTab == 0 ? HalfisiesTheme.primary : Color.clear)
-                    .cornerRadius(HalfisiesTheme.cornerSmall)
-            }
-            
-            // Active Subscriptions (joined)
-            Button(action: { withAnimation(.easeInOut) { selectedTab = 1 } }) {
-                HStack(spacing: 3) {
-                    Text("Active")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    
-                    if viewModel.approvedRequestsCount > 0 {
-                        Text("\(viewModel.approvedRequestsCount)")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 2)
-                            .background(selectedTab == 1 ? Color.white.opacity(0.3) : HalfisiesTheme.secondary)
-                            .cornerRadius(6)
-                    }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 0) {
+                // My Listings
+                TabButton(title: "Listings", isSelected: selectedTab == 0) {
+                    withAnimation(.easeInOut) { selectedTab = 0 }
                 }
-                .foregroundColor(selectedTab == 1 ? .white : HalfisiesTheme.textMuted)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(selectedTab == 1 ? HalfisiesTheme.primary : Color.clear)
-                .cornerRadius(HalfisiesTheme.cornerSmall)
-            }
-            
-            // Incoming Requests
-            Button(action: { withAnimation(.easeInOut) { selectedTab = 2 } }) {
-                HStack(spacing: 3) {
-                    Text("Incoming")
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    
-                    if viewModel.pendingIncomingCount > 0 {
-                        Text("\(viewModel.pendingIncomingCount)")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 2)
-                            .background(selectedTab == 2 ? Color.white.opacity(0.3) : HalfisiesTheme.coral)
-                            .cornerRadius(6)
-                    }
+                
+                // Active Subscriptions (joined)
+                TabButton(title: "Active", badge: viewModel.approvedRequestsCount, isSelected: selectedTab == 1, badgeColor: HalfisiesTheme.secondary) {
+                    withAnimation(.easeInOut) { selectedTab = 1 }
                 }
-                .foregroundColor(selectedTab == 2 ? .white : HalfisiesTheme.textMuted)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(selectedTab == 2 ? HalfisiesTheme.primary : Color.clear)
-                .cornerRadius(HalfisiesTheme.cornerSmall)
+                
+                // Incoming Requests
+                TabButton(title: "Incoming", badge: viewModel.pendingIncomingCount, isSelected: selectedTab == 2, badgeColor: HalfisiesTheme.coral) {
+                    withAnimation(.easeInOut) { selectedTab = 2 }
+                }
+                
+                // My Requests
+                TabButton(title: "Requests", isSelected: selectedTab == 3) {
+                    withAnimation(.easeInOut) { selectedTab = 3 }
+                }
+                
+                // Reviews
+                TabButton(title: "Reviews", badge: viewModel.myReviews.count, isSelected: selectedTab == 4, badgeColor: HalfisiesTheme.warning) {
+                    withAnimation(.easeInOut) { selectedTab = 4 }
+                }
             }
-            
-            // My Requests
-            Button(action: { withAnimation(.easeInOut) { selectedTab = 3 } }) {
-                Text("Requests")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundColor(selectedTab == 3 ? .white : HalfisiesTheme.textMuted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(selectedTab == 3 ? HalfisiesTheme.primary : Color.clear)
-                    .cornerRadius(HalfisiesTheme.cornerSmall)
-            }
+            .padding(4)
         }
-        .padding(4)
         .background(HalfisiesTheme.cardBackground)
         .cornerRadius(HalfisiesTheme.cornerMedium)
         .padding(.horizontal, 20)
@@ -342,15 +308,28 @@ struct ProfileView: View {
                 emptyListings
             } else {
                 ForEach(viewModel.myListings) { listing in
-                    MyListingCard(listing: listing) {
-                        Task {
-                            await viewModel.deleteListing(listing)
+                    MyListingCard(
+                        listing: listing,
+                        onEdit: {
+                            listingToEdit = listing
+                        },
+                        onDelete: {
+                            Task {
+                                await viewModel.deleteListing(listing)
+                            }
                         }
-                    }
+                    )
                 }
             }
         }
         .padding(.horizontal, 20)
+        .sheet(item: $listingToEdit) { listing in
+            EditListingView(listing: listing) { updatedListing in
+                Task {
+                    await viewModel.updateListing(updatedListing)
+                }
+            }
+        }
     }
     
     var emptyListings: some View {
@@ -380,11 +359,81 @@ struct ProfileView: View {
                 emptyActive
             } else {
                 ForEach(viewModel.joinedSubscriptions) { listing in
-                    ActiveSubscriptionCard(listing: listing)
+                    ActiveSubscriptionCard(
+                        listing: listing,
+                        currentUser: authViewModel.currentUser,
+                        hasReviewed: reviewedListings.contains(listing.id),
+                        onLeave: {
+                            Task {
+                                await viewModel.leaveSubscription(listingId: listing.id)
+                            }
+                        },
+                        onReview: {
+                            listingToReview = listing
+                        },
+                        onMessage: {
+                            startConversation(with: listing)
+                        }
+                    )
+                    .task {
+                        // Check if user has already reviewed this owner for this listing
+                        let hasReviewed = await viewModel.hasReviewed(
+                            targetUserId: listing.ownerId,
+                            listingId: listing.id
+                        )
+                        if hasReviewed {
+                            reviewedListings.insert(listing.id)
+                        }
+                    }
                 }
             }
         }
         .padding(.horizontal, 20)
+        .sheet(item: $listingToReview) { listing in
+            if let currentUser = authViewModel.currentUser {
+                WriteReviewView(
+                    listing: listing,
+                    targetUserId: listing.ownerId,
+                    targetUserName: listing.ownerName,
+                    reviewType: .asOwner,
+                    currentUser: currentUser
+                ) { review in
+                    Task {
+                        await viewModel.submitReview(review)
+                        reviewedListings.insert(listing.id)
+                    }
+                }
+            }
+        }
+        .background(
+            NavigationLink(
+                destination: conversationToOpen.map { conv in
+                    ChatView(conversation: conv, authViewModel: authViewModel)
+                },
+                isActive: Binding(
+                    get: { conversationToOpen != nil },
+                    set: { if !$0 { conversationToOpen = nil } }
+                )
+            ) { EmptyView() }
+        )
+    }
+    
+    private func startConversation(with listing: SubscriptionListing) {
+        guard let currentUser = authViewModel.currentUser else { return }
+        
+        messagesViewModel.setCurrentUser(id: currentUser.id)
+        
+        Task {
+            if let conversation = await messagesViewModel.startConversation(
+                with: listing.ownerId,
+                otherUserName: listing.ownerName,
+                currentUser: currentUser,
+                listingId: listing.id,
+                serviceName: listing.service.rawValue
+            ) {
+                conversationToOpen = conversation
+            }
+        }
     }
     
     var emptyActive: some View {
@@ -484,6 +533,83 @@ struct ProfileView: View {
         .background(HalfisiesTheme.cardBackground)
         .cornerRadius(HalfisiesTheme.cornerMedium)
     }
+    
+    // MARK: - Reviews Section
+    var reviewsSection: some View {
+        VStack(spacing: 16) {
+            if viewModel.myReviews.isEmpty {
+                emptyReviews
+            } else {
+                // Reviews summary
+                ReviewsSummaryCard(
+                    averageRating: viewModel.averageRating,
+                    reviewCount: viewModel.myReviews.count,
+                    ratingDistribution: viewModel.ratingDistribution
+                )
+                
+                // All reviews
+                ForEach(viewModel.myReviews) { review in
+                    ReviewCard(review: review)
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    var emptyReviews: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "star.bubble")
+                .font(.system(size: 32))
+                .foregroundColor(HalfisiesTheme.textMuted)
+            
+            Text("No reviews yet")
+                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                .foregroundColor(HalfisiesTheme.textPrimary)
+            
+            Text("Reviews from other users will appear here")
+                .font(.system(size: 14))
+                .foregroundColor(HalfisiesTheme.textMuted)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
+        .padding(.horizontal, 20)
+        .background(HalfisiesTheme.cardBackground)
+        .cornerRadius(HalfisiesTheme.cornerMedium)
+    }
+}
+
+// MARK: - Tab Button Helper
+struct TabButton: View {
+    let title: String
+    var badge: Int = 0
+    let isSelected: Bool
+    var badgeColor: Color = HalfisiesTheme.primary
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 3) {
+                Text(title)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(isSelected ? Color.white.opacity(0.3) : badgeColor)
+                        .cornerRadius(6)
+                }
+            }
+            .foregroundColor(isSelected ? .white : HalfisiesTheme.textMuted)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(isSelected ? HalfisiesTheme.primary : Color.clear)
+            .cornerRadius(HalfisiesTheme.cornerSmall)
+        }
+    }
 }
 
 // MARK: - Verification Row
@@ -556,53 +682,94 @@ struct StatCard: View {
 // MARK: - My Listing Card
 struct MyListingCard: View {
     let listing: SubscriptionListing
+    let onEdit: () -> Void
     let onDelete: () -> Void
     
     @State private var showDeleteConfirmation = false
     
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(listing.service.brandColor.opacity(0.12))
-                    .frame(width: 44, height: 44)
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(listing.service.brandColor.opacity(0.12))
+                        .frame(width: 44, height: 44)
+                    
+                    Image(systemName: listing.service.icon)
+                        .font(.system(size: 18))
+                        .foregroundColor(listing.service.brandColor)
+                }
                 
-                Image(systemName: listing.service.icon)
-                    .font(.system(size: 18))
-                    .foregroundColor(listing.service.brandColor)
-            }
-            
-            VStack(alignment: .leading, spacing: 3) {
-                Text(listing.service.rawValue)
-                    .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundColor(HalfisiesTheme.textPrimary)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(listing.service.rawValue)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundColor(HalfisiesTheme.textPrimary)
+                        
+                        if !listing.isActive {
+                            Text("Paused")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundColor(HalfisiesTheme.warning)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(HalfisiesTheme.warning.opacity(0.12))
+                                .cornerRadius(4)
+                        }
+                    }
+                    
+                    Text("\(listing.availableSeats)/\(listing.totalSeats) seats available")
+                        .font(.system(size: 13))
+                        .foregroundColor(HalfisiesTheme.textMuted)
+                }
                 
-                Text("\(listing.availableSeats)/\(listing.totalSeats) seats available")
-                    .font(.system(size: 13))
-                    .foregroundColor(HalfisiesTheme.textMuted)
-            }
-            
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("$\(String(format: "%.2f", listing.monthlyRevenue))")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundColor(HalfisiesTheme.secondary)
+                Spacer()
                 
-                Text("/month")
-                    .font(.system(size: 10))
-                    .foregroundColor(HalfisiesTheme.textMuted)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("$\(String(format: "%.2f", listing.monthlyRevenue))")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundColor(HalfisiesTheme.secondary)
+                    
+                    Text("/month")
+                        .font(.system(size: 10))
+                        .foregroundColor(HalfisiesTheme.textMuted)
+                }
             }
+            .padding(14)
             
-            // Delete button
-            Button(action: { showDeleteConfirmation = true }) {
-                Image(systemName: "trash")
-                    .font(.system(size: 14))
-                    .foregroundColor(HalfisiesTheme.error.opacity(0.7))
-                    .padding(8)
+            // Action buttons
+            HStack(spacing: 0) {
+                // Edit button
+                Button(action: onEdit) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 12))
+                        Text("Edit")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(HalfisiesTheme.primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(HalfisiesTheme.primary.opacity(0.08))
+                }
+                
+                // Delete button
+                Button(action: { showDeleteConfirmation = true }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12))
+                        Text("Delete")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(HalfisiesTheme.error.opacity(0.8))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(HalfisiesTheme.error.opacity(0.08))
+                }
             }
         }
-        .cozyCard(padding: 14)
+        .background(HalfisiesTheme.cardBackground)
+        .cornerRadius(HalfisiesTheme.cornerMedium)
+        .shadow(color: HalfisiesTheme.shadowColor, radius: 6, y: 2)
         .alert("Delete Listing?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -667,60 +834,115 @@ struct RequestCard: View {
 // MARK: - Active Subscription Card
 struct ActiveSubscriptionCard: View {
     let listing: SubscriptionListing
+    let currentUser: HalfisiesUser?
+    let hasReviewed: Bool
+    let onLeave: () -> Void
+    let onReview: () -> Void
+    let onMessage: () -> Void
+    
+    @State private var showLeaveConfirmation = false
     
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(listing.service.brandColor.opacity(0.12))
-                    .frame(width: 48, height: 48)
-                
-                Image(systemName: listing.service.icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(listing.service.brandColor)
-            }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(listing.service.rawValue)
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                        .foregroundColor(HalfisiesTheme.textPrimary)
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(listing.service.brandColor.opacity(0.12))
+                        .frame(width: 48, height: 48)
                     
-                    Text("Active")
-                        .font(.system(size: 10, weight: .semibold))
+                    Image(systemName: listing.service.icon)
+                        .font(.system(size: 20))
+                        .foregroundColor(listing.service.brandColor)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(listing.service.rawValue)
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundColor(HalfisiesTheme.textPrimary)
+                        
+                        Text("Active")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(HalfisiesTheme.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(HalfisiesTheme.secondary.opacity(0.12))
+                            .cornerRadius(4)
+                    }
+                    
+                    Text(listing.planName)
+                        .font(.system(size: 13))
+                        .foregroundColor(HalfisiesTheme.textMuted)
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 10))
+                        Text("Shared by \(listing.ownerName)")
+                            .font(.system(size: 12))
+                    }
+                    .foregroundColor(HalfisiesTheme.textMuted)
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("$\(String(format: "%.2f", listing.pricePerSeat))")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
                         .foregroundColor(HalfisiesTheme.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(HalfisiesTheme.secondary.opacity(0.12))
-                        .cornerRadius(4)
-                }
-                
-                Text(listing.planName)
-                    .font(.system(size: 13))
-                    .foregroundColor(HalfisiesTheme.textMuted)
-                
-                HStack(spacing: 4) {
-                    Image(systemName: "person.fill")
+                    
+                    Text("/month")
                         .font(.system(size: 10))
-                    Text("Shared by \(listing.ownerName)")
-                        .font(.system(size: 12))
+                        .foregroundColor(HalfisiesTheme.textMuted)
                 }
-                .foregroundColor(HalfisiesTheme.textMuted)
             }
+            .padding(14)
             
-            Spacer()
-            
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("$\(String(format: "%.2f", listing.pricePerSeat))")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundColor(HalfisiesTheme.secondary)
+            // Action buttons
+            HStack(spacing: 0) {
+                // Message button
+                Button(action: onMessage) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bubble.left.fill")
+                            .font(.system(size: 11))
+                        Text("Message")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(HalfisiesTheme.primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(HalfisiesTheme.primary.opacity(0.08))
+                }
                 
-                Text("/month")
-                    .font(.system(size: 10))
-                    .foregroundColor(HalfisiesTheme.textMuted)
+                // Review button
+                Button(action: onReview) {
+                    HStack(spacing: 4) {
+                        Image(systemName: hasReviewed ? "checkmark.circle.fill" : "star.fill")
+                            .font(.system(size: 11))
+                        Text(hasReviewed ? "Reviewed" : "Review")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(hasReviewed ? HalfisiesTheme.textMuted : HalfisiesTheme.warning)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(hasReviewed ? HalfisiesTheme.border.opacity(0.3) : HalfisiesTheme.warning.opacity(0.08))
+                }
+                .disabled(hasReviewed)
+                
+                // Leave button
+                Button(action: { showLeaveConfirmation = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .font(.system(size: 11))
+                        Text("Leave")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(HalfisiesTheme.error.opacity(0.8))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(HalfisiesTheme.error.opacity(0.08))
+                }
             }
         }
-        .padding(14)
         .background(
             RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
                 .fill(HalfisiesTheme.cardBackground)
@@ -729,7 +951,16 @@ struct ActiveSubscriptionCard: View {
                         .stroke(HalfisiesTheme.secondary.opacity(0.2), lineWidth: 1)
                 )
         )
+        .clipShape(RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium))
         .shadow(color: HalfisiesTheme.shadowColor, radius: 6, y: 2)
+        .alert("Leave Subscription?", isPresented: $showLeaveConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Leave", role: .destructive) {
+                onLeave()
+            }
+        } message: {
+            Text("You will lose access to this subscription. You can request to join again later if seats are available.")
+        }
     }
 }
 

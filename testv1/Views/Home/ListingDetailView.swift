@@ -11,9 +11,12 @@ struct ListingDetailView: View {
     let listing: SubscriptionListing
     @ObservedObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = SubscriptionsViewModel()
+    @StateObject private var messagesViewModel = MessagesViewModel()
     @State private var requestMessage = ""
     @State private var showRequestSheet = false
     @State private var requestSent = false
+    @State private var ownerReviews: [Review] = []
+    @State private var conversationToOpen: Conversation?
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -33,11 +36,19 @@ struct ListingDetailView: View {
                     
                     seatSection
                     priceSection
+                    
+                    if !ownerReviews.isEmpty {
+                        ownerReviewsSection
+                    }
+                    
                     trustSection
                     
                     Spacer(minLength: 100)
                 }
                 .padding(.top, 12)
+            }
+            .task {
+                await fetchOwnerReviews()
             }
             
             // Sticky request button
@@ -228,9 +239,55 @@ struct ListingDetailView: View {
                 }
                 .frame(height: 6)
             }
+            
+            // Message Owner button
+            if authViewModel.currentUser?.id != listing.ownerId {
+                Button(action: startConversation) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bubble.left.fill")
+                            .font(.system(size: 13))
+                        Text("Message Owner")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                    }
+                    .foregroundColor(HalfisiesTheme.primary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(HalfisiesTheme.primary.opacity(0.1))
+                    .cornerRadius(HalfisiesTheme.cornerSmall)
+                }
+            }
         }
         .cozyCard()
         .padding(.horizontal, 20)
+        .background(
+            NavigationLink(
+                destination: conversationToOpen.map { conv in
+                    ChatView(conversation: conv, authViewModel: authViewModel)
+                },
+                isActive: Binding(
+                    get: { conversationToOpen != nil },
+                    set: { if !$0 { conversationToOpen = nil } }
+                )
+            ) { EmptyView() }
+        )
+    }
+    
+    private func startConversation() {
+        guard let currentUser = authViewModel.currentUser else { return }
+        
+        messagesViewModel.setCurrentUser(id: currentUser.id)
+        
+        Task {
+            if let conversation = await messagesViewModel.startConversation(
+                with: listing.ownerId,
+                otherUserName: listing.ownerName,
+                currentUser: currentUser,
+                listingId: listing.id,
+                serviceName: listing.service.rawValue
+            ) {
+                conversationToOpen = conversation
+            }
+        }
     }
     
     var trustLabel: String {
@@ -352,6 +409,69 @@ struct ListingDetailView: View {
         }
         .cozyCard()
         .padding(.horizontal, 20)
+    }
+    
+    // MARK: - Owner Reviews Section
+    var ownerReviewsSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(HalfisiesTheme.warning)
+                
+                Text("Reviews")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundColor(HalfisiesTheme.textPrimary)
+                
+                Spacer()
+                
+                Text("\(ownerReviews.count) reviews")
+                    .font(.system(size: 13))
+                    .foregroundColor(HalfisiesTheme.textMuted)
+            }
+            
+            // Show up to 3 reviews
+            ForEach(ownerReviews.prefix(3)) { review in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(review.reviewerName)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundColor(HalfisiesTheme.textPrimary)
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 2) {
+                            ForEach(1...5, id: \.self) { star in
+                                Image(systemName: star <= review.rating ? "star.fill" : "star")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(star <= review.rating ? HalfisiesTheme.warning : HalfisiesTheme.border)
+                            }
+                        }
+                    }
+                    
+                    if !review.comment.isEmpty {
+                        Text(review.comment)
+                            .font(.system(size: 13))
+                            .foregroundColor(HalfisiesTheme.textSecondary)
+                            .lineLimit(2)
+                    }
+                }
+                .padding(12)
+                .background(HalfisiesTheme.appBackground)
+                .cornerRadius(HalfisiesTheme.cornerSmall)
+            }
+        }
+        .cozyCard()
+        .padding(.horizontal, 20)
+    }
+    
+    // Fetch owner reviews
+    private func fetchOwnerReviews() async {
+        do {
+            ownerReviews = try await ServiceContainer.subscriptions.fetchReviewsForUser(userId: listing.ownerId)
+        } catch {
+            print("[Halfsies] Error fetching owner reviews: \(error)")
+        }
     }
     
     // MARK: - Trust Section

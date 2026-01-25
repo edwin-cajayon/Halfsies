@@ -40,6 +40,7 @@ protocol AuthServiceProtocol {
     func signIn(email: String, password: String) async throws -> HalfisiesUser
     func signInWithApple() async throws -> HalfisiesUser
     func signOut() throws
+    func sendPasswordReset(email: String) async throws
 }
 
 // MARK: - Mock Auth Service
@@ -115,5 +116,16 @@ class MockAuthService: AuthServiceProtocol, ObservableObject {
     
     func signOut() throws {
         currentUser = nil
+    }
+    
+    func sendPasswordReset(email: String) async throws {
+        // Simulate network delay
+        try await Task.sleep(nanoseconds: 1_000_000_000)
+        
+        // Validation
+        guard email.contains("@") else { throw AuthError.invalidEmail }
+        
+        // Mock successful password reset email sent
+        print("[Mock] Password reset email sent to: \(email)")
     }
 }

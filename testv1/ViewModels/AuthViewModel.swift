@@ -45,6 +45,9 @@ class AuthViewModel: ObservableObject {
             currentUser = user
             isAuthenticated = true
             clearFields()
+            
+            // Register for notifications and save FCM token
+            await registerForNotifications(userId: user.id)
         } catch let error as AuthError {
             errorMessage = error.localizedDescription
         } catch {
@@ -66,6 +69,9 @@ class AuthViewModel: ObservableObject {
             currentUser = user
             isAuthenticated = true
             clearFields()
+            
+            // Register for notifications and save FCM token
+            await registerForNotifications(userId: user.id)
         } catch let error as AuthError {
             errorMessage = error.localizedDescription
         } catch {
@@ -106,19 +112,23 @@ class AuthViewModel: ObservableObject {
         case .success(let authorization):
             if let appleIDCredential = authorization.credential as? ASAuthorizationAppleIDCredential {
                 do {
+                    var user: HalfisiesUser
+                    
                     // Use FirebaseAuthService to handle the credential
                     if let firebaseAuth = authService as? FirebaseAuthService {
                         // Set the nonce in FirebaseAuthService
                         firebaseAuth.setCurrentNonce(currentNonce)
-                        let user = try await firebaseAuth.handleAppleSignIn(credential: appleIDCredential)
-                        currentUser = user
-                        isAuthenticated = true
+                        user = try await firebaseAuth.handleAppleSignIn(credential: appleIDCredential)
                     } else {
                         // Mock service - just create a mock user
-                        let user = try await authService.signInWithApple()
-                        currentUser = user
-                        isAuthenticated = true
+                        user = try await authService.signInWithApple()
                     }
+                    
+                    currentUser = user
+                    isAuthenticated = true
+                    
+                    // Register for notifications and save FCM token
+                    await registerForNotifications(userId: user.id)
                 } catch let error as AuthError {
                     errorMessage = error.localizedDescription
                 } catch {
@@ -146,6 +156,11 @@ class AuthViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Password Reset
+    func sendPasswordReset(email: String) async throws {
+        try await authService.sendPasswordReset(email: email)
+    }
+    
     // MARK: - Refresh User
     func refreshUser() async {
         guard let userId = currentUser?.id, AppConfig.useFirebase else { return }
@@ -155,6 +170,17 @@ class AuthViewModel: ObservableObject {
             currentUser = user
         } catch {
             ServiceContainer.shared.logDebug("Failed to refresh user: \(error)")
+        }
+    }
+    
+    // MARK: - Notifications
+    private func registerForNotifications(userId: String) async {
+        // Request notification permission
+        let granted = await NotificationService.shared.requestPermission()
+        
+        if granted {
+            // Save FCM token to Firestore
+            await NotificationService.shared.saveTokenToFirestore(userId: userId)
         }
     }
     

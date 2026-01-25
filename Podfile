@@ -8,6 +8,7 @@ target 'testv1' do
   # Firebase
   pod 'FirebaseAuth'
   pod 'FirebaseFirestore'
+  pod 'FirebaseMessaging'
 
 end
 

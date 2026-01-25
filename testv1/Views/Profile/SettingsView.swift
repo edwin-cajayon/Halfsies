@@ -138,13 +138,37 @@ struct SettingsView: View {
     var notificationsSection: some View {
         SettingsSection(title: "Notifications") {
             VStack(spacing: 0) {
-                SettingsToggleRow(
-                    icon: "bell.fill",
-                    iconColor: HalfisiesTheme.coral,
-                    title: "Push Notifications",
-                    subtitle: "Get notified about seat requests",
-                    isOn: $notificationsEnabled
-                )
+                NavigationLink(destination: NotificationSettingsView()) {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(HalfisiesTheme.coral.opacity(0.12))
+                                .frame(width: 34, height: 34)
+                            
+                            Image(systemName: "bell.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(HalfisiesTheme.coral)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Push Notifications")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundColor(HalfisiesTheme.textPrimary)
+                            
+                            Text("Manage notification preferences")
+                                .font(.system(size: 12))
+                                .foregroundColor(HalfisiesTheme.textMuted)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(HalfisiesTheme.textMuted.opacity(0.6))
+                    }
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(.plain)
                 
                 SettingsDivider()
                 
