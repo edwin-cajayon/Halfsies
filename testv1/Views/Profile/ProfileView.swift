@@ -373,7 +373,9 @@ struct ProfileView: View {
             if viewModel.joinedSubscriptions.isEmpty {
                 emptyActive
             } else {
-                ForEach(viewModel.joinedSubscriptions) { listing in
+                // Deduplicate subscriptions by ID to avoid ForEach warnings
+                let uniqueSubscriptions = Array(Dictionary(grouping: viewModel.joinedSubscriptions, by: { $0.id }).compactMapValues { $0.first }.values)
+                ForEach(uniqueSubscriptions) { listing in
                     ActiveSubscriptionCard(
                         listing: listing,
                         currentUser: authViewModel.currentUser,
@@ -613,8 +615,7 @@ struct ProfileView: View {
                 ForEach(favoriteListings) { listing in
                     NavigationLink(destination: ListingDetailView(
                         listing: listing,
-                        authViewModel: authViewModel,
-                        subscriptionsViewModel: SubscriptionsViewModel()
+                        authViewModel: authViewModel
                     )) {
                         CozySubscriptionCard(listing: listing, showFavoriteButton: true)
                     }

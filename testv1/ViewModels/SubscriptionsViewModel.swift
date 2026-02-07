@@ -82,7 +82,7 @@ class SubscriptionsViewModel: ObservableObject {
     }
     
     // MARK: - Create Listing
-    func createListing(ownerId: String, ownerName: String) async -> Bool {
+    func createListing(ownerId: String, ownerName: String, paymentInfo: PaymentInfo? = nil) async -> Bool {
         guard validateNewListing() else { return false }
         
         isLoading = true
@@ -96,7 +96,8 @@ class SubscriptionsViewModel: ObservableObject {
             totalSeats: newListingTotalSeats,
             availableSeats: newListingAvailableSeats,
             pricePerSeat: Double(newListingPricePerSeat) ?? 0,
-            description: newListingDescription
+            description: newListingDescription,
+            paymentInfo: paymentInfo
         )
         
         do {

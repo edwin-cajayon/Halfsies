@@ -6,11 +6,14 @@
 //
 
 import SwiftUI
+import Combine
 
 struct ContentView: View {
     @StateObject private var authViewModel = AuthViewModel()
     @StateObject private var themeManager = ThemeManager.shared
+    @EnvironmentObject var deepLinkService: DeepLinkService
     @State private var showSplash = true
+    @State private var showDeepLinkedListing = false
     
     var body: some View {
         ZStack {
@@ -39,6 +42,27 @@ struct ContentView: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 withAnimation(.easeOut(duration: 0.5)) {
                     showSplash = false
+                }
+            }
+        }
+        .onReceive(deepLinkService.$showDeepLinkedListing) { listing in
+            if listing != nil {
+                showDeepLinkedListing = true
+            }
+        }
+        .sheet(isPresented: $showDeepLinkedListing, onDismiss: {
+            deepLinkService.clearPendingDestination()
+        }) {
+            if let listing = deepLinkService.showDeepLinkedListing {
+                NavigationStack {
+                    ListingDetailView(listing: listing, authViewModel: authViewModel)
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button("Close") {
+                                    showDeepLinkedListing = false
+                                }
+                            }
+                        }
                 }
             }
         }

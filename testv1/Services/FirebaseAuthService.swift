@@ -99,39 +99,63 @@ class FirebaseAuthService: NSObject, AuthServiceProtocol, ObservableObject {
     }
     
     // MARK: - Email Verification
-    
+
     var isEmailVerified: Bool {
         Auth.auth().currentUser?.isEmailVerified ?? false
     }
-    
+
     func sendVerificationEmail() async throws {
         guard let user = Auth.auth().currentUser else {
             throw AuthError.userNotFound
         }
-        
+
+        // Rate limiting: prevent spam
+        guard canSendVerificationEmail() else {
+            throw AuthError.tooManyRequests
+        }
+
         do {
             try await user.sendEmailVerification()
+            lastVerificationEmailSent = Date()
             print("[Halfsies] Verification email sent")
         } catch let error as NSError {
             throw mapFirebaseError(error)
         }
     }
-    
-    func reloadUser() async throws {
+
+    func checkEmailVerification() async throws -> Bool {
         guard let user = Auth.auth().currentUser else {
             throw AuthError.userNotFound
         }
-        
+
+        // Reload user from Firebase to get latest verification status
         try await user.reload()
-        
-        // Update local user's verification status
+        let isVerified = user.isEmailVerified
+
+        // Update Firestore if status changed
         if var currentUser = self.currentUser {
-            currentUser.verifiedEmail = user.isEmailVerified
-            try? await FirestoreService.shared.updateUser(currentUser)
-            await MainActor.run {
-                self.currentUser = currentUser
+            let currentStatus = currentUser.verifiedEmail
+            currentUser.verifiedEmail = isVerified
+
+            if currentStatus != isVerified {
+                try? await FirestoreService.shared.updateUser(currentUser)
+                await MainActor.run {
+                    self.currentUser = currentUser
+                }
+                print("[Halfsies] Email verification status updated: \(isVerified)")
             }
         }
+
+        return isVerified
+    }
+
+    // MARK: - Rate Limiting
+    private var lastVerificationEmailSent: Date?
+    private let verificationEmailCooldown: TimeInterval = 60 // 60 seconds
+
+    private func canSendVerificationEmail() -> Bool {
+        guard let lastSent = lastVerificationEmailSent else { return true }
+        return Date().timeIntervalSince(lastSent) >= verificationEmailCooldown
     }
     
     // MARK: - Sign In with Email
@@ -275,6 +299,8 @@ class FirebaseAuthService: NSObject, AuthServiceProtocol, ObservableObject {
             return .weakPassword
         case .networkError:
             return .networkError
+        case .tooManyRequests:
+            return .tooManyRequests
         default:
             return .unknown
         }

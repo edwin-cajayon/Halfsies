@@ -43,11 +43,14 @@ struct ConversationsListView: View {
         }
         .navigationTitle("Messages")
         .navigationBarTitleDisplayMode(.large)
-        .task {
+        .onAppear {
             if let userId = authViewModel.currentUser?.id {
                 viewModel.setCurrentUser(id: userId)
-                await viewModel.fetchConversations()
+                viewModel.startListeningToConversations()
             }
+        }
+        .onDisappear {
+            viewModel.stopListeningToConversations()
         }
         .refreshable {
             await viewModel.fetchConversations()

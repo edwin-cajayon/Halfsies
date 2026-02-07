@@ -239,6 +239,7 @@ struct SubscriptionListing: Identifiable, Codable {
     var createdAt: Date
     var isActive: Bool
     var joinedCount: Int // How many people have joined this listing
+    var paymentInfo: PaymentInfo? // Payment methods accepted by owner
     
     var occupiedSeats: Int {
         totalSeats - availableSeats
@@ -278,7 +279,8 @@ struct SubscriptionListing: Identifiable, Codable {
         description: String = "",
         createdAt: Date = Date(),
         isActive: Bool = true,
-        joinedCount: Int = 0
+        joinedCount: Int = 0,
+        paymentInfo: PaymentInfo? = nil
     ) {
         self.id = id
         self.ownerId = ownerId
@@ -294,6 +296,7 @@ struct SubscriptionListing: Identifiable, Codable {
         self.createdAt = createdAt
         self.isActive = isActive
         self.joinedCount = joinedCount
+        self.paymentInfo = paymentInfo
     }
 }
 

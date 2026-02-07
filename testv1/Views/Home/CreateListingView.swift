@@ -12,6 +12,9 @@ struct CreateListingView: View {
     @ObservedObject var authViewModel: AuthViewModel
     @Binding var isPresented: Bool
     
+    @State private var paymentInfo = PaymentInfo()
+    @State private var showPaymentSetup = false
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -25,6 +28,7 @@ struct CreateListingView: View {
                         seatsConfiguration
                         pricingSection
                         descriptionSection
+                        paymentSection
                         
                         // Error
                         if let error = viewModel.errorMessage {
@@ -296,6 +300,66 @@ struct CreateListingView: View {
         }
     }
     
+    // MARK: - Payment Section
+    var paymentSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Payment Methods")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(HalfisiesTheme.textMuted)
+            
+            Button(action: { showPaymentSetup = true }) {
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(HalfisiesTheme.secondary.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        
+                        Image(systemName: "creditcard.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(HalfisiesTheme.secondary)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(paymentInfo.acceptedMethods.isEmpty ? "Set Up Payment Methods" : "Payment Methods Configured")
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundColor(HalfisiesTheme.textPrimary)
+                        
+                        if paymentInfo.acceptedMethods.isEmpty {
+                            Text("Tell co-subscribers how to pay you")
+                                .font(.system(size: 13))
+                                .foregroundColor(HalfisiesTheme.textMuted)
+                        } else {
+                            Text(paymentInfo.acceptedMethods.map { $0.rawValue }.joined(separator: ", "))
+                                .font(.system(size: 13))
+                                .foregroundColor(HalfisiesTheme.secondary)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: paymentInfo.acceptedMethods.isEmpty ? "chevron.right" : "checkmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(paymentInfo.acceptedMethods.isEmpty ? HalfisiesTheme.textMuted : HalfisiesTheme.secondary)
+                }
+                .padding(14)
+                .background(HalfisiesTheme.cardBackground)
+                .cornerRadius(HalfisiesTheme.cornerMedium)
+                .overlay(
+                    RoundedRectangle(cornerRadius: HalfisiesTheme.cornerMedium)
+                        .stroke(paymentInfo.acceptedMethods.isEmpty ? HalfisiesTheme.border : HalfisiesTheme.secondary.opacity(0.3), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .sheet(isPresented: $showPaymentSetup) {
+                PaymentSetupView(paymentInfo: $paymentInfo)
+            }
+            
+            Text("Co-subscribers will see your payment info after you approve their request")
+                .font(.system(size: 12))
+                .foregroundColor(HalfisiesTheme.textMuted)
+        }
+    }
+    
     // MARK: - Create Button
     var createButton: some View {
         VStack(spacing: 0) {
@@ -307,7 +371,8 @@ struct CreateListingView: View {
                     guard let user = authViewModel.currentUser else { return }
                     let success = await viewModel.createListing(
                         ownerId: user.id,
-                        ownerName: user.displayName
+                        ownerName: user.displayName,
+                        paymentInfo: paymentInfo.acceptedMethods.isEmpty ? nil : paymentInfo
                     )
                     if success {
                         isPresented = false

@@ -260,6 +260,10 @@ struct AuthView: View {
                     .opacity(viewModel.isLoading ? 0.7 : 1)
                 }
                 
+                // NOTE: Apple Sign In requires paid Apple Developer account ($99/year)
+                // Uncomment below when you have a paid developer account
+                
+                /*
                 // Divider
                 HStack(spacing: 16) {
                     Rectangle()
@@ -289,6 +293,7 @@ struct AuthView: View {
                 .frame(height: 50)
                 .cornerRadius(HalfisiesTheme.cornerMedium)
                 .disabled(viewModel.isLoading)
+                */
                 
                 // Legal text
                 Text("By continuing, you agree to our Terms of Service\nand Privacy Policy")

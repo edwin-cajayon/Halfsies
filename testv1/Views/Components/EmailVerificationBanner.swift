@@ -13,7 +13,10 @@ struct EmailVerificationBanner: View {
     @State private var showSuccess = false
     @State private var showError = false
     @State private var errorMessage = ""
-    
+    @State private var cooldownRemaining = 0
+
+    private let cooldownDuration = 60 // seconds
+
     var body: some View {
         if shouldShowBanner {
             HStack(spacing: 12) {
@@ -22,41 +25,48 @@ struct EmailVerificationBanner: View {
                     Circle()
                         .fill(HalfisiesTheme.warning.opacity(0.2))
                         .frame(width: 36, height: 36)
-                    
+
                     Image(systemName: "envelope.badge")
                         .font(.system(size: 16))
                         .foregroundColor(HalfisiesTheme.warning)
                 }
-                
+
                 // Text
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Verify your email")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundColor(HalfisiesTheme.textPrimary)
-                    
+
                     Text("Check your inbox for a verification link")
                         .font(.system(size: 12))
                         .foregroundColor(HalfisiesTheme.textMuted)
                 }
-                
+
                 Spacer()
-                
+
                 // Resend Button
                 Button(action: resendVerification) {
-                    if isResending {
+                    if authViewModel.isCheckingVerification {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else if isResending {
                         ProgressView()
                             .scaleEffect(0.8)
                     } else if showSuccess {
                         Image(systemName: "checkmark")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(HalfisiesTheme.secondary)
+                    } else if cooldownRemaining > 0 {
+                        Text("\(cooldownRemaining)s")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(HalfisiesTheme.textMuted)
                     } else {
                         Text("Resend")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(HalfisiesTheme.primary)
                     }
                 }
-                .disabled(isResending || showSuccess)
+                .disabled(isResending || showSuccess || cooldownRemaining > 0 || authViewModel.isCheckingVerification)
             }
             .padding(14)
             .background(HalfisiesTheme.warning.opacity(0.08))
@@ -71,32 +81,42 @@ struct EmailVerificationBanner: View {
             } message: {
                 Text(errorMessage)
             }
+            .onAppear {
+                // Check verification when banner appears
+                Task {
+                    await authViewModel.checkEmailVerification()
+                }
+            }
         }
     }
-    
+
     private var shouldShowBanner: Bool {
         guard let user = authViewModel.currentUser else { return false }
-        // Show if email is not verified (based on Firestore user data)
         return !user.verifiedEmail
     }
-    
+
     private func resendVerification() {
         isResending = true
-        
+
         Task {
             do {
-                if let firebaseAuth = ServiceContainer.auth as? FirebaseAuthService {
-                    try await firebaseAuth.sendVerificationEmail()
-                }
-                
+                try await authViewModel.authService.sendVerificationEmail()
+
                 await MainActor.run {
                     isResending = false
                     showSuccess = true
-                    
+                    startCooldown()
+
                     // Reset success state after delay
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                         showSuccess = false
                     }
+                }
+            } catch let error as AuthError {
+                await MainActor.run {
+                    isResending = false
+                    errorMessage = error.localizedDescription
+                    showError = true
                 }
             } catch {
                 await MainActor.run {
@@ -107,6 +127,18 @@ struct EmailVerificationBanner: View {
             }
         }
     }
+
+    private func startCooldown() {
+        cooldownRemaining = cooldownDuration
+
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+            if cooldownRemaining > 0 {
+                cooldownRemaining -= 1
+            } else {
+                timer.invalidate()
+            }
+        }
+    }
 }
 
 // MARK: - Compact Version for Profile
@@ -114,7 +146,10 @@ struct EmailVerificationCard: View {
     @ObservedObject var authViewModel: AuthViewModel
     @State private var isResending = false
     @State private var showSuccess = false
-    
+    @State private var cooldownRemaining = 0
+
+    private let cooldownDuration = 60 // seconds
+
     var body: some View {
         if !isVerified {
             VStack(spacing: 12) {
@@ -122,20 +157,20 @@ struct EmailVerificationCard: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 18))
                         .foregroundColor(HalfisiesTheme.warning)
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Email not verified")
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
                             .foregroundColor(HalfisiesTheme.textPrimary)
-                        
+
                         Text("Verify to unlock all features")
                             .font(.system(size: 13))
                             .foregroundColor(HalfisiesTheme.textMuted)
                     }
-                    
+
                     Spacer()
                 }
-                
+
                 Button(action: resendVerification) {
                     HStack(spacing: 6) {
                         if isResending {
@@ -146,6 +181,9 @@ struct EmailVerificationCard: View {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 13, weight: .bold))
                             Text("Sent!")
+                        } else if cooldownRemaining > 0 {
+                            Text("Wait \(cooldownRemaining)s")
+                                .font(.system(size: 13, weight: .bold))
                         } else {
                             Image(systemName: "envelope")
                                 .font(.system(size: 13))
@@ -159,32 +197,36 @@ struct EmailVerificationCard: View {
                     .background(showSuccess ? HalfisiesTheme.secondary : HalfisiesTheme.warning)
                     .cornerRadius(HalfisiesTheme.cornerSmall)
                 }
-                .disabled(isResending || showSuccess)
+                .disabled(isResending || showSuccess || cooldownRemaining > 0)
             }
             .padding(16)
             .background(HalfisiesTheme.cardBackground)
             .cornerRadius(HalfisiesTheme.cornerMedium)
             .shadow(color: HalfisiesTheme.shadowColor, radius: 8, y: 3)
+            .onAppear {
+                Task {
+                    await authViewModel.checkEmailVerification()
+                }
+            }
         }
     }
-    
+
     private var isVerified: Bool {
         authViewModel.currentUser?.verifiedEmail ?? false
     }
-    
+
     private func resendVerification() {
         isResending = true
-        
+
         Task {
             do {
-                if let firebaseAuth = ServiceContainer.auth as? FirebaseAuthService {
-                    try await firebaseAuth.sendVerificationEmail()
-                }
-                
+                try await authViewModel.authService.sendVerificationEmail()
+
                 await MainActor.run {
                     isResending = false
                     showSuccess = true
-                    
+                    startCooldown()
+
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                         showSuccess = false
                     }
@@ -196,12 +238,84 @@ struct EmailVerificationCard: View {
             }
         }
     }
+
+    private func startCooldown() {
+        cooldownRemaining = cooldownDuration
+
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
+            if cooldownRemaining > 0 {
+                cooldownRemaining -= 1
+            } else {
+                timer.invalidate()
+            }
+        }
+    }
+}
+
+// MARK: - Email Verification Status Row
+struct EmailVerificationStatusRow: View {
+    @ObservedObject var authViewModel: AuthViewModel
+    @State private var isRefreshing = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: isVerified ? "checkmark.shield.fill" : "exclamationmark.shield")
+                .font(.system(size: 20))
+                .foregroundColor(isVerified ? HalfisiesTheme.secondary : HalfisiesTheme.warning)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Email Status")
+                    .font(.system(size: 13))
+                    .foregroundColor(HalfisiesTheme.textMuted)
+
+                Text(isVerified ? "Verified" : "Not Verified")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundColor(isVerified ? HalfisiesTheme.secondary : HalfisiesTheme.warning)
+            }
+
+            Spacer()
+
+            if !isVerified {
+                Button(action: checkVerification) {
+                    if isRefreshing || authViewModel.isCheckingVerification {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 16))
+                            .foregroundColor(HalfisiesTheme.primary)
+                    }
+                }
+                .disabled(isRefreshing || authViewModel.isCheckingVerification)
+            }
+        }
+        .padding(14)
+        .background(HalfisiesTheme.cardBackground)
+        .cornerRadius(HalfisiesTheme.cornerMedium)
+    }
+
+    private var isVerified: Bool {
+        authViewModel.currentUser?.verifiedEmail ?? false
+    }
+
+    private func checkVerification() {
+        isRefreshing = true
+
+        Task {
+            await authViewModel.checkEmailVerification()
+
+            await MainActor.run {
+                isRefreshing = false
+            }
+        }
+    }
 }
 
 #Preview {
     VStack(spacing: 20) {
         EmailVerificationBanner(authViewModel: AuthViewModel())
         EmailVerificationCard(authViewModel: AuthViewModel())
+        EmailVerificationStatusRow(authViewModel: AuthViewModel())
     }
     .padding()
     .background(HalfisiesTheme.appBackground)

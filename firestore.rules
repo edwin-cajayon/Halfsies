@@ -1,0 +1,189 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user is the owner of the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check if user is not blocked by another user
+    function isNotBlocked(targetUserId) {
+      return !exists(/databases/$(database)/documents/users/$(targetUserId)/blockedUsers/$(request.auth.uid));
+    }
+    
+    // ============================================
+    // USERS COLLECTION
+    // ============================================
+    match /users/{userId} {
+      // Anyone authenticated can read basic user info
+      allow read: if isAuthenticated();
+      
+      // Only the user can create/update their own profile
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      
+      // Only the user can delete their account
+      allow delete: if isOwner(userId);
+      
+      // Blocked users subcollection
+      match /blockedUsers/{blockedId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+    
+    // ============================================
+    // LISTINGS COLLECTION
+    // ============================================
+    match /listings/{listingId} {
+      // Anyone authenticated can read listings (filtered by blocked in app)
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can create listings
+      allow create: if isAuthenticated() 
+        && request.resource.data.ownerId == request.auth.uid;
+      
+      // Only owner can update their listing
+      allow update: if isAuthenticated() 
+        && resource.data.ownerId == request.auth.uid;
+      
+      // Only owner can delete their listing
+      allow delete: if isAuthenticated() 
+        && resource.data.ownerId == request.auth.uid;
+    }
+    
+    // ============================================
+    // SEAT REQUESTS COLLECTION
+    // ============================================
+    match /seatRequests/{requestId} {
+      // Requester and listing owner can read
+      allow read: if isAuthenticated() 
+        && (resource.data.requesterId == request.auth.uid 
+            || resource.data.ownerId == request.auth.uid);
+      
+      // Authenticated users can create requests
+      allow create: if isAuthenticated() 
+        && request.resource.data.requesterId == request.auth.uid;
+      
+      // Owner can update (approve/deny), requester can update (cancel)
+      allow update: if isAuthenticated() 
+        && (resource.data.ownerId == request.auth.uid 
+            || resource.data.requesterId == request.auth.uid);
+      
+      // Either party can delete
+      allow delete: if isAuthenticated() 
+        && (resource.data.ownerId == request.auth.uid 
+            || resource.data.requesterId == request.auth.uid);
+    }
+    
+    // ============================================
+    // CONVERSATIONS COLLECTION
+    // ============================================
+    match /conversations/{conversationId} {
+      // Only participants can read
+      allow read: if isAuthenticated() 
+        && request.auth.uid in resource.data.participantIds;
+      
+      // Authenticated users can create (must be a participant)
+      allow create: if isAuthenticated() 
+        && request.auth.uid in request.resource.data.participantIds;
+      
+      // Participants can update (mark as read, etc.)
+      allow update: if isAuthenticated() 
+        && request.auth.uid in resource.data.participantIds;
+      
+      // Participants can delete
+      allow delete: if isAuthenticated() 
+        && request.auth.uid in resource.data.participantIds;
+      
+      // Messages subcollection
+      match /messages/{messageId} {
+        // Only conversation participants can read messages
+        allow read: if isAuthenticated() 
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds;
+        
+        // Only participants can send messages
+        allow create: if isAuthenticated() 
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participantIds
+          && request.resource.data.senderId == request.auth.uid;
+        
+        // No editing messages
+        allow update: if false;
+        
+        // Sender can delete their own message
+        allow delete: if isAuthenticated() 
+          && resource.data.senderId == request.auth.uid;
+      }
+    }
+    
+    // ============================================
+    // REVIEWS COLLECTION
+    // ============================================
+    match /reviews/{reviewId} {
+      // Anyone authenticated can read reviews
+      allow read: if isAuthenticated();
+      
+      // Authenticated users can create reviews (must be the reviewer)
+      allow create: if isAuthenticated() 
+        && request.resource.data.reviewerId == request.auth.uid;
+      
+      // Only reviewer can update their review
+      allow update: if isAuthenticated() 
+        && resource.data.reviewerId == request.auth.uid;
+      
+      // Only reviewer can delete their review
+      allow delete: if isAuthenticated() 
+        && resource.data.reviewerId == request.auth.uid;
+    }
+    
+    // ============================================
+    // REPORTS COLLECTION
+    // ============================================
+    match /reports/{reportId} {
+      // Only the reporter can read their own reports
+      allow read: if isAuthenticated() 
+        && resource.data.reporterId == request.auth.uid;
+      
+      // Authenticated users can create reports
+      allow create: if isAuthenticated() 
+        && request.resource.data.reporterId == request.auth.uid;
+      
+      // No updating reports
+      allow update: if false;
+      
+      // No deleting reports (admin only via console)
+      allow delete: if false;
+    }
+    
+    // ============================================
+    // PAYMENTS COLLECTION (if used)
+    // ============================================
+    match /payments/{paymentId} {
+      // Payer and recipient can read
+      allow read: if isAuthenticated() 
+        && (resource.data.payerId == request.auth.uid 
+            || resource.data.recipientId == request.auth.uid);
+      
+      // Payer can create
+      allow create: if isAuthenticated() 
+        && request.resource.data.payerId == request.auth.uid;
+      
+      // Both parties can update (mark paid, confirm, etc.)
+      allow update: if isAuthenticated() 
+        && (resource.data.payerId == request.auth.uid 
+            || resource.data.recipientId == request.auth.uid);
+      
+      // No deleting payment records
+      allow delete: if false;
+    }
+  }
+}

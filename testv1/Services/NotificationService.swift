@@ -198,6 +198,129 @@ class NotificationService: NSObject, ObservableObject {
         )
     }
     
+    // MARK: - Subscription Reminders
+    
+    /// Schedule a payment reminder for a subscription
+    func schedulePaymentReminder(
+        subscriptionId: String,
+        serviceName: String,
+        amount: Double,
+        dueDate: Date,
+        reminderDaysBefore: Int = 3
+    ) {
+        // Remove any existing reminder for this subscription
+        cancelPaymentReminder(subscriptionId: subscriptionId)
+        
+        // Calculate reminder date
+        let reminderDate = Calendar.current.date(byAdding: .day, value: -reminderDaysBefore, to: dueDate) ?? dueDate
+        
+        // Don't schedule if reminder date is in the past
+        guard reminderDate > Date() else {
+            print("[Halfsies] Reminder date is in the past, skipping")
+            return
+        }
+        
+        let content = UNMutableNotificationContent()
+        content.title = "Payment Reminder"
+        content.body = "Your \(serviceName) payment of $\(String(format: "%.2f", amount)) is due in \(reminderDaysBefore) days"
+        content.sound = .default
+        content.categoryIdentifier = HalfisiesNotificationType.subscriptionReminder.rawValue
+        content.userInfo = [
+            "type": HalfisiesNotificationType.subscriptionReminder.rawValue,
+            "subscriptionId": subscriptionId
+        ]
+        
+        // Create trigger for reminder date
+        let dateComponents = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: reminderDate)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
+        
+        let request = UNNotificationRequest(
+            identifier: "payment_reminder_\(subscriptionId)",
+            content: content,
+            trigger: trigger
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("[Halfsies] Error scheduling reminder: \(error)")
+            } else {
+                print("[Halfsies] Payment reminder scheduled for \(serviceName) on \(reminderDate)")
+            }
+        }
+    }
+    
+    /// Schedule a recurring monthly reminder
+    func scheduleMonthlyReminder(
+        subscriptionId: String,
+        serviceName: String,
+        amount: Double,
+        dayOfMonth: Int
+    ) {
+        // Remove any existing reminder
+        cancelPaymentReminder(subscriptionId: subscriptionId)
+        
+        let content = UNMutableNotificationContent()
+        content.title = "Monthly Payment Due"
+        content.body = "Your \(serviceName) payment of $\(String(format: "%.2f", amount)) is due today"
+        content.sound = .default
+        content.categoryIdentifier = HalfisiesNotificationType.subscriptionReminder.rawValue
+        content.userInfo = [
+            "type": HalfisiesNotificationType.subscriptionReminder.rawValue,
+            "subscriptionId": subscriptionId
+        ]
+        
+        // Create monthly trigger
+        var dateComponents = DateComponents()
+        dateComponents.day = dayOfMonth
+        dateComponents.hour = 9 // 9 AM
+        dateComponents.minute = 0
+        
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        
+        let request = UNNotificationRequest(
+            identifier: "monthly_reminder_\(subscriptionId)",
+            content: content,
+            trigger: trigger
+        )
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("[Halfsies] Error scheduling monthly reminder: \(error)")
+            } else {
+                print("[Halfsies] Monthly reminder scheduled for \(serviceName) on day \(dayOfMonth)")
+            }
+        }
+    }
+    
+    /// Cancel a payment reminder
+    func cancelPaymentReminder(subscriptionId: String) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [
+            "payment_reminder_\(subscriptionId)",
+            "monthly_reminder_\(subscriptionId)"
+        ])
+        print("[Halfsies] Payment reminder cancelled for \(subscriptionId)")
+    }
+    
+    /// Cancel all payment reminders
+    func cancelAllPaymentReminders() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let reminderIds = requests
+                .filter { $0.identifier.contains("reminder_") }
+                .map { $0.identifier }
+            
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: reminderIds)
+            print("[Halfsies] Cancelled \(reminderIds.count) payment reminders")
+        }
+    }
+    
+    /// Get all scheduled reminders
+    func getScheduledReminders(completion: @escaping ([UNNotificationRequest]) -> Void) {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let reminders = requests.filter { $0.identifier.contains("reminder_") }
+            completion(reminders)
+        }
+    }
+    
     // MARK: - Badge Management
     
     /// Update app badge count

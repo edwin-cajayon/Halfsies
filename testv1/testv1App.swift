@@ -78,10 +78,25 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 @main
 struct testv1App: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+    @StateObject private var deepLinkService = DeepLinkService.shared
     
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(deepLinkService)
+                .onOpenURL { url in
+                    handleIncomingURL(url)
+                }
+        }
+    }
+    
+    private func handleIncomingURL(_ url: URL) {
+        print("[Halfsies] Received URL: \(url)")
+        
+        if let destination = deepLinkService.parseURL(url) {
+            Task { @MainActor in
+                deepLinkService.handleDeepLink(destination)
+            }
         }
     }
 }

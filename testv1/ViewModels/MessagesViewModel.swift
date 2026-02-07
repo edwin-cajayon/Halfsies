@@ -16,6 +16,7 @@ class MessagesViewModel: ObservableObject {
     @Published var errorMessage: String?
     
     private let subscriptionService: SubscriptionServiceProtocol
+    private let realtimeService = RealtimeService.shared
     
     var totalUnreadCount: Int {
         guard let userId = currentUserId else { return 0 }
@@ -23,6 +24,7 @@ class MessagesViewModel: ObservableObject {
     }
     
     private var currentUserId: String?
+    private var isListeningToConversations = false
     
     init(subscriptionService: SubscriptionServiceProtocol? = nil) {
         self.subscriptionService = subscriptionService ?? ServiceContainer.subscriptions
@@ -33,6 +35,27 @@ class MessagesViewModel: ObservableObject {
     }
     
     // MARK: - Conversations
+    
+    /// Start listening to conversations in real-time
+    func startListeningToConversations() {
+        guard let userId = currentUserId, !isListeningToConversations else { return }
+        
+        isLoading = true
+        isListeningToConversations = true
+        
+        realtimeService.listenToConversations(userId: userId) { [weak self] conversations in
+            self?.conversations = conversations
+            self?.isLoading = false
+            print("[Halfsies] Real-time: \(conversations.count) conversations")
+        }
+    }
+    
+    /// Stop listening to conversations
+    func stopListeningToConversations() {
+        guard let userId = currentUserId else { return }
+        realtimeService.stopListening(for: "conversations_\(userId)")
+        isListeningToConversations = false
+    }
     
     func fetchConversations() async {
         guard let userId = currentUserId else { return }
@@ -97,6 +120,29 @@ class MessagesViewModel: ObservableObject {
     
     // MARK: - Messages
     
+    /// Start listening to messages in a conversation in real-time
+    func startListeningToMessages(conversationId: String) {
+        isLoading = true
+        
+        realtimeService.listenToMessages(conversationId: conversationId) { [weak self] messages in
+            self?.messages = messages
+            self?.isLoading = false
+            print("[Halfsies] Real-time: \(messages.count) messages")
+        }
+        
+        // Mark as read
+        if let userId = currentUserId {
+            Task {
+                try? await subscriptionService.markMessagesAsRead(conversationId: conversationId, userId: userId)
+            }
+        }
+    }
+    
+    /// Stop listening to messages
+    func stopListeningToMessages(conversationId: String) {
+        realtimeService.stopListening(for: "messages_\(conversationId)")
+    }
+    
     func fetchMessages(conversationId: String) async {
         isLoading = true
         
@@ -127,8 +173,8 @@ class MessagesViewModel: ObservableObject {
         
         do {
             let sent = try await subscriptionService.sendMessage(message)
-            messages.append(sent)
-            await fetchConversations() // Refresh conversation list
+            // Don't manually append - the real-time listener will handle it
+            // This prevents duplicate messages
             print("[Halfsies] Sent message: \(sent.id)")
         } catch {
             errorMessage = "Failed to send message."

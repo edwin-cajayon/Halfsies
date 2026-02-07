@@ -12,6 +12,7 @@ struct ChatView: View {
     @ObservedObject var authViewModel: AuthViewModel
     @StateObject private var viewModel = MessagesViewModel()
     @State private var messageText = ""
+    @State private var showReportSheet = false
     @FocusState private var isTextFieldFocused: Bool
     
     var currentUserId: String {
@@ -20,6 +21,10 @@ struct ChatView: View {
     
     var otherName: String {
         conversation.otherParticipantName(currentUserId: currentUserId)
+    }
+    
+    var otherUserId: String {
+        conversation.participants.first { $0 != currentUserId } ?? ""
     }
     
     var body: some View {
@@ -44,14 +49,27 @@ struct ChatView: View {
                                 )
                                 .id(message.id)
                             }
+                            
+                            // Spacer at bottom for better scroll behavior
+                            Color.clear
+                                .frame(height: 1)
+                                .id("bottom")
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                     }
+                    .scrollDismissesKeyboard(.interactively)
+                    .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                proxy.scrollTo("bottom", anchor: .bottom)
+                            }
+                        }
+                    }
                     .onChange(of: viewModel.messages.count) { _ in
-                        if let lastMessage = viewModel.messages.last {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             withAnimation {
-                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                                proxy.scrollTo("bottom", anchor: .bottom)
                             }
                         }
                     }
@@ -63,11 +81,36 @@ struct ChatView: View {
         }
         .navigationTitle(otherName)
         .navigationBarTitleDisplayMode(.inline)
-        .task {
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button(role: .destructive, action: { showReportSheet = true }) {
+                        Label("Report User", systemImage: "flag.fill")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 18))
+                        .foregroundColor(HalfisiesTheme.textSecondary)
+                }
+            }
+        }
+        .sheet(isPresented: $showReportSheet) {
+            if let currentUser = authViewModel.currentUser {
+                ReportUserView(
+                    reportedUserId: otherUserId,
+                    reportedUserName: otherName,
+                    currentUser: currentUser
+                )
+            }
+        }
+        .onAppear {
             if let userId = authViewModel.currentUser?.id {
                 viewModel.setCurrentUser(id: userId)
-                await viewModel.fetchMessages(conversationId: conversation.id)
+                viewModel.startListeningToMessages(conversationId: conversation.id)
             }
+        }
+        .onDisappear {
+            viewModel.stopListeningToMessages(conversationId: conversation.id)
         }
     }
     
@@ -95,16 +138,23 @@ struct ChatView: View {
             Divider()
                 .background(HalfisiesTheme.divider)
             
-            HStack(spacing: 12) {
+            HStack(alignment: .bottom, spacing: 12) {
                 // Text field
                 TextField("Type a message...", text: $messageText, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.system(size: 16))
                     .foregroundColor(HalfisiesTheme.textPrimary)
+                    .tint(HalfisiesTheme.primary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(HalfisiesTheme.cardBackground)
-                    .cornerRadius(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(HalfisiesTheme.cardBackground)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(HalfisiesTheme.border, lineWidth: 1)
+                            )
+                    )
                     .lineLimit(1...4)
                     .focused($isTextFieldFocused)
                 
@@ -119,8 +169,12 @@ struct ChatView: View {
                 .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(HalfisiesTheme.appBackground)
+            .padding(.top, 12)
+            .padding(.bottom, 12)
+            .background(
+                HalfisiesTheme.appBackground
+                    .shadow(color: Color.black.opacity(0.05), radius: 8, y: -4)
+            )
         }
     }
     

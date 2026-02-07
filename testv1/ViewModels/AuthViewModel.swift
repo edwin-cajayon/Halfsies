@@ -19,9 +19,11 @@ class AuthViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var isAuthenticated = false
     @Published var currentUser: HalfisiesUser?
-    
-    private let authService: AuthServiceProtocol
+    @Published var isCheckingVerification = false
+
+    let authService: AuthServiceProtocol
     private var currentNonce: String?
+    private var verificationCheckTimer: Timer?
     
     init(authService: AuthServiceProtocol? = nil) {
         self.authService = authService ?? ServiceContainer.auth
@@ -45,7 +47,10 @@ class AuthViewModel: ObservableObject {
             currentUser = user
             isAuthenticated = true
             clearFields()
-            
+
+            // Start checking for email verification
+            startVerificationCheck()
+
             // Register for notifications and save FCM token
             await registerForNotifications(userId: user.id)
         } catch let error as AuthError {
@@ -164,13 +169,71 @@ class AuthViewModel: ObservableObject {
     // MARK: - Refresh User
     func refreshUser() async {
         guard let userId = currentUser?.id, AppConfig.useFirebase else { return }
-        
+
         do {
             let user = try await FirestoreService.shared.fetchUser(id: userId)
             currentUser = user
         } catch {
             ServiceContainer.shared.logDebug("Failed to refresh user: \(error)")
         }
+    }
+
+    // MARK: - Email Verification
+
+    /// Checks if the user's email is verified and updates local state
+    func checkEmailVerification() async {
+        guard isAuthenticated, !(currentUser?.verifiedEmail ?? false) else { return }
+
+        isCheckingVerification = true
+
+        do {
+            let isVerified = try await authService.checkEmailVerification()
+
+            if isVerified {
+                // Update local user
+                if var user = currentUser {
+                    user.verifiedEmail = true
+                    currentUser = user
+                }
+                ServiceContainer.shared.logDebug("Email verified!")
+            }
+        } catch {
+            ServiceContainer.shared.logDebug("Failed to check verification: \(error)")
+        }
+
+        isCheckingVerification = false
+    }
+
+    /// Starts periodic verification checking (called after sign up)
+    func startVerificationCheck() {
+        // Check immediately
+        Task {
+            await checkEmailVerification()
+        }
+
+        // Check every 10 seconds for the first 2 minutes
+        verificationCheckTimer?.invalidate()
+        verificationCheckTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.checkEmailVerification()
+
+                // Stop after 12 checks (2 minutes) or if verified
+                if self?.currentUser?.verifiedEmail == true {
+                    self?.stopVerificationCheck()
+                }
+            }
+        }
+
+        // Auto-stop after 2 minutes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 120) { [weak self] in
+            self?.stopVerificationCheck()
+        }
+    }
+
+    /// Stops the verification check timer
+    func stopVerificationCheck() {
+        verificationCheckTimer?.invalidate()
+        verificationCheckTimer = nil
     }
     
     // MARK: - Notifications

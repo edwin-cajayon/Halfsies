@@ -155,12 +155,16 @@ struct OnboardingPage {
 struct OnboardingPageView: View {
     let page: OnboardingPage
     
+    @State private var isVisible = false
+    
     var body: some View {
         VStack(spacing: 40) {
             Spacer()
             
             // Illustration
             illustrationView
+                .scaleEffect(isVisible ? 1 : 0.7)
+                .opacity(isVisible ? 1 : 0)
             
             // Content
             VStack(spacing: 16) {
@@ -168,6 +172,8 @@ struct OnboardingPageView: View {
                     .font(.system(size: 28, weight: .bold, design: .rounded))
                     .foregroundColor(HalfisiesTheme.textPrimary)
                     .multilineTextAlignment(.center)
+                    .offset(y: isVisible ? 0 : 15)
+                    .opacity(isVisible ? 1 : 0)
                 
                 Text(page.description)
                     .font(.system(size: 16))
@@ -175,10 +181,19 @@ struct OnboardingPageView: View {
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
                     .padding(.horizontal, 24)
+                    .offset(y: isVisible ? 0 : 15)
+                    .opacity(isVisible ? 1 : 0)
             }
             
             Spacer()
             Spacer()
+        }
+        .task {
+            // Small delay then animate in
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            withAnimation(.easeOut(duration: 0.4)) {
+                isVisible = true
+            }
         }
     }
     

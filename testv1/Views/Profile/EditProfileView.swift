@@ -140,19 +140,13 @@ struct EditProfileView: View {
             }
             
             // Photo Picker
-            PhotosPicker(selection: $selectedPhoto, matching: .images) {
+            PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
                 Text("Change Photo")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundColor(HalfisiesTheme.primary)
             }
             .onChange(of: selectedPhoto) { newValue in
-                Task {
-                    if let data = try? await newValue?.loadTransferable(type: Data.self),
-                       let uiImage = UIImage(data: data) {
-                        profileUIImage = uiImage
-                        profileImage = Image(uiImage: uiImage)
-                    }
-                }
+                loadSelectedPhoto(from: newValue)
             }
             
             Text("Tap to upload a new photo")
@@ -294,6 +288,28 @@ struct EditProfileView: View {
             displayName != authViewModel.currentUser?.displayName
         let photoChanged = profileUIImage != nil
         return nameChanged || photoChanged
+    }
+    
+    func loadSelectedPhoto(from item: PhotosPickerItem?) {
+        guard let item = item else { return }
+        
+        Task {
+            do {
+                if let data = try await item.loadTransferable(type: Data.self),
+                   let uiImage = UIImage(data: data) {
+                    await MainActor.run {
+                        profileUIImage = uiImage
+                        profileImage = Image(uiImage: uiImage)
+                    }
+                }
+            } catch {
+                print("Error loading photo: \(error.localizedDescription)")
+                await MainActor.run {
+                    errorMessage = "Unable to load selected photo. Please try a different image."
+                    showError = true
+                }
+            }
+        }
     }
     
     func saveProfile() {

@@ -17,6 +17,7 @@ struct ListingDetailView: View {
     @State private var requestSent = false
     @State private var ownerReviews: [Review] = []
     @State private var conversationToOpen: Conversation?
+    @State private var showReportSheet = false
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -58,8 +59,38 @@ struct ListingDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 12) {
+                    // Share button
+                    ShareListingButton(listing: listing)
+                    
+                    // More options (report)
+                    if listing.ownerId != authViewModel.currentUser?.id {
+                        Menu {
+                            Button(role: .destructive, action: { showReportSheet = true }) {
+                                Label("Report User", systemImage: "flag.fill")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                                .font(.system(size: 18))
+                                .foregroundColor(HalfisiesTheme.textSecondary)
+                        }
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showRequestSheet) {
             requestSheet
+        }
+        .sheet(isPresented: $showReportSheet) {
+            if let currentUser = authViewModel.currentUser {
+                ReportUserView(
+                    reportedUserId: listing.ownerId,
+                    reportedUserName: listing.ownerName,
+                    currentUser: currentUser
+                )
+            }
         }
     }
     

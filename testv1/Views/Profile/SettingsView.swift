@@ -14,7 +14,7 @@ struct SettingsView: View {
     
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("emailNotifications") private var emailNotifications = true
-    @State private var showDeleteConfirmation = false
+    @State private var showDeleteAccount = false
     @State private var showSignOutConfirmation = false
     @State private var showEditProfile = false
     
@@ -37,6 +37,9 @@ struct SettingsView: View {
                     
                     // Notifications Section
                     notificationsSection
+                    
+                    // Safety & Privacy Section
+                    safetySection
                     
                     // Support Section
                     supportSection
@@ -66,22 +69,11 @@ struct SettingsView: View {
         } message: {
             Text("Are you sure you want to sign out?")
         }
-        .alert("Delete Account?", isPresented: $showDeleteConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                Task {
-                    if let firebaseAuth = ServiceContainer.auth as? FirebaseAuthService {
-                        try? await firebaseAuth.deleteAccount()
-                    }
-                    authViewModel.signOut()
-                    dismiss()
-                }
-            }
-        } message: {
-            Text("This will permanently delete your account and all your data. This action cannot be undone.")
-        }
         .sheet(isPresented: $showEditProfile) {
             EditProfileView(authViewModel: authViewModel)
+        }
+        .sheet(isPresented: $showDeleteAccount) {
+            DeleteAccountView(authViewModel: authViewModel)
         }
     }
     
@@ -205,6 +197,40 @@ struct SettingsView: View {
                 
                 SettingsDivider()
                 
+                NavigationLink(destination: ReminderSettingsView(authViewModel: authViewModel)) {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(HalfisiesTheme.golden.opacity(0.12))
+                                .frame(width: 34, height: 34)
+                            
+                            Image(systemName: "calendar.badge.clock")
+                                .font(.system(size: 14))
+                                .foregroundColor(HalfisiesTheme.golden)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Payment Reminders")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundColor(HalfisiesTheme.textPrimary)
+                            
+                            Text("Get reminded before payments are due")
+                                .font(.system(size: 12))
+                                .foregroundColor(HalfisiesTheme.textMuted)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(HalfisiesTheme.textMuted.opacity(0.6))
+                    }
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(.plain)
+                
+                SettingsDivider()
+                
                 SettingsToggleRow(
                     icon: "envelope.fill",
                     iconColor: HalfisiesTheme.secondary,
@@ -216,10 +242,95 @@ struct SettingsView: View {
         }
     }
     
+    // MARK: - Safety & Privacy Section
+    var safetySection: some View {
+        SettingsSection(title: "Safety & Privacy") {
+            VStack(spacing: 0) {
+                NavigationLink(destination: BlockedUsersView(currentUserId: authViewModel.currentUser?.id ?? "")) {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(HalfisiesTheme.error.opacity(0.12))
+                                .frame(width: 34, height: 34)
+                            
+                            Image(systemName: "person.crop.circle.badge.xmark")
+                                .font(.system(size: 14))
+                                .foregroundColor(HalfisiesTheme.error)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Blocked Users")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundColor(HalfisiesTheme.textPrimary)
+                            
+                            Text("Manage blocked accounts")
+                                .font(.system(size: 12))
+                                .foregroundColor(HalfisiesTheme.textMuted)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(HalfisiesTheme.textMuted.opacity(0.6))
+                    }
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(.plain)
+                
+                SettingsDivider()
+                
+                SettingsNavigationRow(
+                    icon: "shield.fill",
+                    iconColor: HalfisiesTheme.secondary,
+                    title: "Community Guidelines"
+                ) {
+                    if let url = URL(string: "https://halfsies.app/guidelines") {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }
+        }
+    }
+    
     // MARK: - Support Section
     var supportSection: some View {
         SettingsSection(title: "Support") {
             VStack(spacing: 0) {
+                NavigationLink(destination: ReferralView(authViewModel: authViewModel)) {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(HalfisiesTheme.primary.opacity(0.12))
+                                .frame(width: 34, height: 34)
+                            
+                            Image(systemName: "gift.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(HalfisiesTheme.primary)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Invite Friends")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundColor(HalfisiesTheme.textPrimary)
+                            
+                            Text("Share and earn rewards")
+                                .font(.system(size: 12))
+                                .foregroundColor(HalfisiesTheme.textMuted)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(HalfisiesTheme.textMuted.opacity(0.6))
+                    }
+                    .padding(.vertical, 10)
+                }
+                .buttonStyle(.plain)
+                
+                SettingsDivider()
+                
                 SettingsNavigationRow(
                     icon: "questionmark.circle.fill",
                     iconColor: HalfisiesTheme.golden,
@@ -332,7 +443,7 @@ struct SettingsView: View {
             }
             
             // Delete Account Button
-            Button(action: { showDeleteConfirmation = true }) {
+            Button(action: { showDeleteAccount = true }) {
                 HStack(spacing: 8) {
                     Image(systemName: "trash")
                         .font(.system(size: 15))

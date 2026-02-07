@@ -122,7 +122,7 @@ enum ImageUploadError: LocalizedError {
 // MARK: - UIImage Extension for SwiftUI
 extension UIImage {
     /// Create UIImage from SwiftUI Image (via Data)
-    convenience init?(data: Data) {
-        self.init(data: data)
+    convenience init?(swiftUIData: Data) {
+        self.init(data: swiftUIData)
     }
 }
